@@ -15,9 +15,12 @@ __email__ = ', '.join([
     'mohsen.naghipourfar@gmail.com'
 ])
 
-from get_version import get_version
-__version__ = get_version(__file__)
-del get_version
+try:
+    from get_version import get_version
+    __version__ = get_version(__file__)
+    del get_version
+except Exception:
+    __version__ = "0.0.0-sagemaker"
 
 
 

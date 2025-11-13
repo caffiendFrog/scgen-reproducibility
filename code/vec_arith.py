@@ -1,9 +1,9 @@
 # from hf import *
 
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 import scgen
-
+from utils import to_dense_array
 
 # =============================== downloading training and validation files ====================================
 # we do not use the validation data to apply vectroe arithmetics in gene expression space
@@ -37,14 +37,14 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
 
     import scipy.sparse as sparse
     if sparse.issparse(train_real_cd.X):
-        train_real_cd = train_real_cd.X.A
-        train_real_stimulated = train_real_stimulated.X.A
+        train_real_cd = train_real_cd.toarray()
+        train_real_stimulated = to_dense_array(train_real_stimulated.X)
     else:
         train_real_cd = train_real_cd.X
         train_real_stimulated = train_real_stimulated.X
     if sparse.issparse(ctrl_cell.X):
-        ctrl_cell.X = ctrl_cell.X.A
-        stim_cell.X = stim_cell.X.A
+        ctrl_cell.X = ctrl_cell.X.toarray()
+        stim_cell.X = to_dense_array(stim_cell.X)
     predicted_cells = predict(train_real_cd, train_real_stimulated, ctrl_cell.X)
 
     print("Prediction has been finished")

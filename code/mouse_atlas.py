@@ -1,9 +1,11 @@
-import tensorflow as tf
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 from random import  shuffle
 import wget
 import os
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 
 train_path = "../data/MouseAtlas.subset.h5ad"

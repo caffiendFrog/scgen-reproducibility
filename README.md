@@ -29,7 +29,7 @@ figure       | notebook path
 
 To run the notebooks and scripts you need following packages :
 
-tensorflow, scanpy, numpy, matplotlib, scipy, wget.
+tensorflow, scanpy, numpy, matplotlib, scipy, wget, adjustText, get_version
 
 
 ## Getting Started

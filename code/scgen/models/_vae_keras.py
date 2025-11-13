@@ -3,7 +3,6 @@ import os
 
 import keras
 import numpy
-import tensorflow as tf
 from keras import backend as K, Model
 from keras.callbacks import CSVLogger, LambdaCallback
 from keras.layers import Input, Dense, BatchNormalization, LeakyReLU, Dropout, Lambda
@@ -12,6 +11,10 @@ from scipy import sparse
 
 import scgen
 from .util import balancer, extractor, shuffle_data
+
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 log = logging.getLogger(__file__)
 

@@ -2,10 +2,13 @@ import logging
 import os
 
 import numpy
-import tensorflow as tf
 from scipy import sparse
 
 from .util import balancer, extractor, shuffle_data
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 
 log = logging.getLogger(__file__)
 
@@ -45,13 +48,23 @@ class VAEArith:
         self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim], name="latent")
         self.time_step = tf.placeholder(tf.int32)
         self.size = tf.placeholder(tf.int32)
-        self.init_w = tf.contrib.layers.xavier_initializer()
+        self.init_w = tf.glorot_uniform_initializer()
         self._create_network()
         self._loss_function()
         self.sess = tf.Session()
         self.saver = tf.train.Saver(max_to_keep=1)
         self.init = tf.global_variables_initializer().run(session=self.sess)
 
+    def _work_around(self, scope, feature_dim, h, training):
+        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+            scale = tf.get_variable("scale", shape=[feature_dim], initializer=tf.ones_initializer())
+            offset = tf.get_variable("offset", shape=[feature_dim], initializer=tf.zeros_initializer())
+            batch_mean, batch_var = tf.nn.moments(h, axes=[0])
+            return tf.nn.batch_normalization(h, batch_mean, batch_var, offset, scale, variance_epsilon=1e-5)
+
+    def _do_dropout(self, x):
+        return tf.nn.dropout(x, rate=self.dropout_rate)
+    
     def _encoder(self):
         """
             Constructs the encoder sub-network of VAE. This function implements the
@@ -68,16 +81,20 @@ class VAEArith:
                     A dense layer consists of log transformed variances of gaussian distributions of latent space dimensions.
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
-            h = tf.layers.dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(self.x)
+            # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = self._work_around("encoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
+            h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(h)
+            # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = self._work_around("encoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            mean = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
-            log_var = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
+            h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            mean = tf.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w)(h)
+            log_var = tf.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w)(h)
             return mean, log_var
 
     def _decoder(self):
@@ -95,15 +112,19 @@ class VAEArith:
 
         """
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            h = tf.layers.dense(inputs=self.z_mean, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(self.z_mean)
+            # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = self._work_around("decoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
+            h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(h)
+            # tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = self._work_around("decoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
+            # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
+            h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            h = tf.keras.layers.Dense(units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)(h)
             h = tf.nn.relu(h)
             return h
 

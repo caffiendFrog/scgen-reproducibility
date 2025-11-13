@@ -1,11 +1,12 @@
 import anndata
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 # from data_reader import data_reader
 # from hf import *
 import scgen
 import scipy.sparse as sparse
 from sklearn.decomposition import PCA
+from utils import to_dense_array
 
 
 # =============================== downloading training and validation files ====================================
@@ -38,7 +39,7 @@ def reconstruct():
     for idx, cell_type in enumerate(data.obs["cell_type"].unique().tolist()):
         pca = PCA(n_components=100)
         train = data[~((data.obs["condition"] == stim_key) & (data.obs["cell_type"] == cell_type))]
-        pca.fit(train.X.A)
+        pca.fit(to_dense_array(train.X))
         print(cell_type, end="\t")
         train_real_stimulated = data[data.obs["condition"] == stim_key, :]
         train_real_stimulated = train_real_stimulated[train_real_stimulated.obs["cell_type"] != cell_type]
@@ -53,12 +54,12 @@ def reconstruct():
         cell_type_ctrl = cell_type_adata[cell_type_adata.obs["condition"] == ctrl_key]
         cell_type_stim = cell_type_adata[cell_type_adata.obs["condition"] == stim_key]
         if sparse.issparse(cell_type_ctrl.X):
-            cell_type_ctrl_PCA = pca.transform(cell_type_ctrl.X.A)
+            cell_type_ctrl_PCA = pca.transform(cell_type_ctrl.X.toarray())
         else:
             cell_type_ctrl_PCA = pca.transform(cell_type_ctrl.X)
         predicted_cells = predict(pca, train_real_cd_PCA, train_real_stimulated_PCA, cell_type_ctrl_PCA)
         if sparse.issparse(cell_type_ctrl.X):
-            all_Data = sc.AnnData(np.concatenate([cell_type_ctrl.X.A, cell_type_stim.X.A, predicted_cells]))
+            all_Data = sc.AnnData(np.concatenate([cell_type_ctrl.X.toarray(), to_dense_array(cell_type_stim.X), predicted_cells]))
         else:
             all_Data = sc.AnnData(np.concatenate([cell_type_ctrl.X, cell_type_stim.X, predicted_cells]))
         all_Data.obs["condition"] = [f"{cell_type}_ctrl"] * cell_type_ctrl.shape[0] + [f"{cell_type}_real_stim"] * \
@@ -95,7 +96,7 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     train = data[~((data.obs["condition"] == stim_key) & (data.obs[cell_type_key] == cell_type))]
     pca = PCA(n_components=100)
 
-    pca.fit(train.X.A)
+    pca.fit(to_dense_array(train.X))
 
     train_real_cd = train[train.obs["condition"] == "control", :]
     if p_type == "unbiased":
@@ -106,16 +107,16 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
 
     import scipy.sparse as sparse
     if sparse.issparse(train_real_cd.X):
-        train_real_cd.X = train_real_cd.X.A
-        train_real_stimulated.X = train_real_stimulated.X.A
+        train_real_cd.X =train_real_cd.X.toarray()
+        train_real_stimulated.X = to_dense_array(train_real_stimulated.X)
 
     train_real_stimulated_PCA = pca.transform(train_real_stimulated.X)
     train_real_cd_PCA = pca.transform(train_real_cd.X)
 
     adata_list = scgen.util.extractor(data, cell_type, {"ctrl": ctrl_key, "stim": stim_key})
     if sparse.issparse(adata_list[1].X):
-        adata_list[1].X = adata_list[1].X.A
-        adata_list[2].X = adata_list[2].X.A
+        adata_list[1].X = adata_list[1].X.toarray()
+        adata_list[2].X = to_dense_array(adata_list[2].X)
     ctrl_CD4T_PCA = pca.transform(adata_list[1].X)
     predicted_cells = predict(pca, train_real_cd_PCA, train_real_stimulated_PCA, ctrl_CD4T_PCA, p_type)
 

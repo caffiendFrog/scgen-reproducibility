@@ -3,10 +3,14 @@ from random import shuffle
 
 import matplotlib
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 import sklearn as sk
-import tensorflow as tf
+
 import wget
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 
 train_path = "../data/pancreas.h5ad"
 

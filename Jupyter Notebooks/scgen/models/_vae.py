@@ -248,12 +248,12 @@ class VAEArith:
             ```
         """
         if sparse.issparse(source_adata.X):
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
+            source_average = source_adata.X.toarray().mean(axis=0).reshape((1, source_adata.shape[1]))
         else:
             source_average = source_adata.X.mean(axis=0).reshape((1, source_adata.shape[1]))
 
         if sparse.issparse(dest_adata.X):
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
+            dest_average = dest_adata.X.toarray().mean(axis=0).reshape((1, dest_adata.shape[1]))
         else:
             dest_average = dest_adata.X.mean(axis=0).reshape((1, dest_adata.shape[1]))
         start = self.to_latent(source_average)
@@ -328,14 +328,14 @@ class VAEArith:
             cd_ind = numpy.random.choice(range(ctrl_x.shape[0]), size=ctrl_x.shape[0], replace=False)
             stim_ind = numpy.random.choice(range(stim_x.shape[0]), size=stim_x.shape[0], replace=False)
         if sparse.issparse(ctrl_x.X) and sparse.issparse(stim_x.X):
-            latent_ctrl = self._avg_vector(ctrl_x.X.A[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X.A[stim_ind, :])
+            latent_ctrl = self._avg_vector(ctrl_x.X.toarray()[cd_ind, :])
+            latent_sim = self._avg_vector(stim_x.X.toarray()[stim_ind, :])
         else:
             latent_ctrl = self._avg_vector(ctrl_x.X[cd_ind, :])
             latent_sim = self._avg_vector(stim_x.X[stim_ind, :])
         delta = latent_sim - latent_ctrl
         if sparse.issparse(ctrl_pred.X):
-            latent_cd = self.to_latent(ctrl_pred.X.A)
+            latent_cd = self.to_latent(ctrl_pred.X.toarray())
         else:
             latent_cd = self.to_latent(ctrl_pred.X)
         stim_pred = delta + latent_cd
@@ -449,7 +449,7 @@ class VAEArith:
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
                 if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
+                    x_mb = train_data[lower:upper, :].X.toarray()
                 else:
                     x_mb = train_data[lower:upper, :].X
                 if upper - lower > 1:
@@ -462,7 +462,7 @@ class VAEArith:
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
                     if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
+                        x_mb = valid_data[lower:upper, :].X.toarray()
                     else:
                         x_mb = valid_data[lower:upper, :].X
                     current_loss_valid = self.sess.run(self.vae_loss,

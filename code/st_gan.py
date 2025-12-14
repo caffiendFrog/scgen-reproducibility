@@ -318,10 +318,16 @@ if __name__ == "__main__":
     print("model has been trained/restored!")
     adata_list = dr.extractor(data, "CD4T")
     ctrl_CD4T = adata_list[1]
+    from scipy import sparse
     if sys.argv[1] == "train":
-        predicted_cells = predict(ctrl_CD4T.X.A)
-        all_Data = sc.AnnData(np.concatenate([adata_list[1].X.A, adata_list[2].X.A, predicted_cells]))
-        all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X.A) + ["real_stim"] * len(adata_list[2].X.A) + \
+        if sparse.issparse(ctrl_CD4T.X):
+            ctrl_CD4T.X = ctrl_CD4T.X.toarray()
+        predicted_cells = predict(ctrl_CD4T.X)
+        for idx in (1, 2):
+            if sparse.issparse(adata_list[idx].X):
+                adata_list[idx].X = adata_list[idx].X.toarray()
+        all_Data = sc.AnnData(np.concatenate([adata_list[1].X, adata_list[2].X, predicted_cells]))
+        all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X) + ["real_stim"] * len(adata_list[2].X) + \
                                     ["pred_stim"] * len(predicted_cells)
         all_Data.var_names = adata_list[3].var_names
         all_Data.write("../data/reconstructed/CGAN/cgan_cd4t.h5ad")

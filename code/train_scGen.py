@@ -110,7 +110,7 @@ def reconstruct_whole_data(data_name="pbmc", condition_key="condition"):
                                           cell_type_key: [cell_type] * len(cell_type_ctrl_data)},
                                      var={"var_names": cell_type_ctrl_data.var_names})
         if sparse.issparse(cell_type_data.X):
-            real_stim = cell_type_data[cell_type_data.obs[condition_key] == stim_key].X.A
+            real_stim = cell_type_data[cell_type_data.obs[condition_key] == stim_key].X.toarray()
         else:
             real_stim = cell_type_data[cell_type_data.obs[condition_key] == stim_key].X
         real_stim_adata = anndata.AnnData(real_stim,
@@ -186,16 +186,16 @@ def train_cross_study(data_name="study",
 
 
 if __name__ == '__main__':
-    test_train_whole_data_one_celltype_out("pbmc", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
-                                           dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("hpoly", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
-                                           dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("salmonella", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
-                                           dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
-                                           dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="rat")
-    train_cross_study("study", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
-                      dropout_rate=0.2, learning_rate=0.001)
+    # test_train_whole_data_one_celltype_out("pbmc", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    #                                        dropout_rate=0.2, learning_rate=0.001)
+    # test_train_whole_data_one_celltype_out("hpoly", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    #                                        dropout_rate=0.2, learning_rate=0.001)
+    # test_train_whole_data_one_celltype_out("salmonella", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    #                                        dropout_rate=0.2, learning_rate=0.001)
+    # test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    #                                        dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="rat")
+    # train_cross_study("study", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    #                   dropout_rate=0.2, learning_rate=0.001)
     reconstruct_whole_data("pbmc")
     reconstruct_whole_data("hpoly")
     reconstruct_whole_data("salmonella")

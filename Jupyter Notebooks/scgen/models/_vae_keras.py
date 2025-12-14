@@ -305,14 +305,14 @@ class VAEArithKeras:
             >>> interpolation = network.linear_interpolation(souece, destination, n_steps=25)
         """
         if sparse.issparse(source_adata.X):
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
+            source_average = source_adata.X.toarray().mean(axis=0).reshape((1, source_adata.shape[1]))
         else:
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
+            source_average = source_adata.X.mean(axis=0).reshape((1, source_adata.shape[1]))
 
         if sparse.issparse(dest_adata.X):
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
+            dest_average = dest_adata.X.toarray().mean(axis=0).reshape((1, dest_adata.shape[1]))
         else:
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
+            dest_average = dest_adata.X.mean(axis=0).reshape((1, dest_adata.shape[1]))
         start = self.to_latent(source_average)
         end = self.to_latent(dest_average)
         vectors = numpy.zeros((n_steps, start.shape[1]))
@@ -382,14 +382,14 @@ class VAEArithKeras:
         cd_ind = numpy.random.choice(range(ctrl_x.shape[0]), size=eq, replace=False)
         stim_ind = numpy.random.choice(range(stim_x.shape[0]), size=eq, replace=False)
         if sparse.issparse(ctrl_x.X) and sparse.issparse(stim_x.X):
-            latent_ctrl = self._avg_vector(ctrl_x.X.A[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X.A[stim_ind, :])
+            latent_ctrl = self._avg_vector(ctrl_x.X.toarray()[cd_ind, :])
+            latent_sim = self._avg_vector(stim_x.X.toarray()[stim_ind, :])
         else:
             latent_ctrl = self._avg_vector(ctrl_x.X[cd_ind, :])
             latent_sim = self._avg_vector(stim_x.X[stim_ind, :])
         delta = latent_sim - latent_ctrl
         if sparse.issparse(ctrl_pred.X):
-            latent_cd = self.to_latent(ctrl_pred.X.A)
+            latent_cd = self.to_latent(ctrl_pred.X.toarray())
         else:
             latent_cd = self.to_latent(ctrl_pred.X)
         stim_pred = delta + latent_cd

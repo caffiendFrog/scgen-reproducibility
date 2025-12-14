@@ -58,7 +58,7 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
     sns.set()
     sns.set(color_codes=True)
     if sparse.issparse(adata.X):
-        adata.X = adata.X.A
+        adata.X = adata.X.toarray()
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
     ctrl = adata[adata.obs[condition_key] == axis_keys["x"]]
@@ -164,7 +164,7 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
     sns.set()
     sns.set(color_codes=True)
     if sparse.issparse(adata.X):
-        adata.X = adata.X.A
+        adata.X = adata.X.toarray()
     sc.tl.rank_genes_groups(adata, groupby=condition_key, n_genes=100, method="wilcoxon")
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
@@ -264,7 +264,7 @@ def binary_classifier(scg_object, adata, delta, condition_key, conditions, path_
     # matplotlib.rcParams.update(matplotlib.rcParamsDefault)
     pyplot.close("all")
     if sparse.issparse(adata.X):
-        adata.X = adata.X.A
+        adata.X = adata.X.toarray()
     cd = adata[adata.obs[condition_key] == conditions["ctrl"], :]
     stim = adata[adata.obs[condition_key] == conditions["stim"], :]
     all_latent_cd = scg_object.to_latent(cd.X)

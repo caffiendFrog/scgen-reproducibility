@@ -241,7 +241,7 @@ class CVAE:
             ```
         """
         if sparse.issparse(data.X):
-            stim_pred = self._reconstruct(data.X.A, labels)
+            stim_pred = self._reconstruct(data.X.toarray(), labels)
         else:
             stim_pred = self._reconstruct(data.X, labels)
         return stim_pred
@@ -332,7 +332,7 @@ class CVAE:
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
                 if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
+                    x_mb = train_data[lower:upper, :].X.toarray()
                 else:
                     x_mb = train_data[lower:upper, :].X
                 y_mb = train_labels[lower:upper]
@@ -347,7 +347,7 @@ class CVAE:
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
                     if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
+                        x_mb = valid_data[lower:upper, :].X.toarray()
                     else:
                         x_mb = valid_data[lower:upper, :].X
                     y_mb = valid_labels[lower:upper]

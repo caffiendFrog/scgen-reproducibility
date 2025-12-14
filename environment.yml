@@ -1,0 +1,23 @@
+name: scgen-repro-env
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    # Core
+    - python=3.12
+    - numpy
+    - scipy
+    - matplotlib
+
+    # Domain - single cell
+    - scanpy
+
+    # Machine Learning
+    - tensorflow
+
+    # Utilities
+    - wget
+    - adjusttext
+    - get_version
+
+    - pip

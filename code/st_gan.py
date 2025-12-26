@@ -1,5 +1,6 @@
 from random import shuffle
 
+import os
 import numpy as np
 import scanpy as sc
 
@@ -330,7 +331,9 @@ if __name__ == "__main__":
         all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X) + ["real_stim"] * len(adata_list[2].X) + \
                                     ["pred_stim"] * len(predicted_cells)
         all_Data.var_names = adata_list[3].var_names
-        all_Data.write("../data/reconstructed/CGAN/cgan_cd4t.h5ad")
+        output_path = "../data/reconstructed/CGAN/cgan_cd4t.h5ad"
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        all_Data.write(output_path)
     if sys.argv[1] == "latent":
         low_dim = low_embed_stim(train_real.X)
         dt = sc.AnnData(low_dim)

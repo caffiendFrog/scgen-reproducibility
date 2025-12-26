@@ -233,8 +233,10 @@ if __name__ == "__main__":
     all_data.obs["celltype"] = "others"
     for cell_type in top_cell_types:
         all_data.obs.loc[all_data.obs["cell_type"] == cell_type, "celltype"] = cell_type
-    all_data.write("../data/reconstructed/scGen/pancreas.h5ad")
-    print("scGen batch corrected pancreas has been saved in ../data/reconstructed/scGen/pancreas.h5ad")
+    output_path = "../data/reconstructed/scGen/pancreas.h5ad"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    all_data.write(output_path)
+    print(f"scGen batch corrected pancreas has been saved in {output_path}")
     # sc.pp.neighbors(all_data)
     # sc.tl.umap(all_data)
     # sc.pl.umap(all_data, title="", palette=matplotlib.rcParams["axes.prop_cycle"], color=["celltype"],

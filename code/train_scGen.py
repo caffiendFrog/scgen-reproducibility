@@ -1,3 +1,5 @@
+import os
+
 import anndata
 import scanpy as sc
 import scgen
@@ -213,7 +215,6 @@ def reconstruct_whole_data(data_name="pbmc", condition_key="condition"):
     # Ensure output directory exists and write results
     output_path = f"../data/reconstructed/scGen/{data_name}.h5ad"
     try:
-        import os
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         all_data.write_h5ad(output_path)
     except (IOError, OSError) as e:

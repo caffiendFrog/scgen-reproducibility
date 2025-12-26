@@ -1,3 +1,4 @@
+import os
 import scgen
 import scanpy as sc
 import numpy as np
@@ -18,4 +19,6 @@ predicted_cells = network.predict(unperturbed_data, fake_labels)
 adata = sc.AnnData(predicted_cells, obs={"condition": ["pred"]*len(fake_labels)})
 adata.var_names = CD4T.var_names
 all_adata = CD4T.concatenate(adata)
-all_adata.write("../data/reconstructed/CVAE_CD4T.h5ad")
+output_path = "../data/reconstructed/CVAE_CD4T.h5ad"
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+all_adata.write(output_path)

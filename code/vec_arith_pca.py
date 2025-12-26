@@ -1,3 +1,5 @@
+import os
+
 import anndata
 import numpy as np
 import scanpy as sc
@@ -74,7 +76,9 @@ def reconstruct():
         else:
             all_data = all_data.concatenate(all_Data)
         print(cell_type)
-    sc.write("../data/reconstructed/PCAVecArithm/PCA_pbmc.h5ad", all_data)
+    output_path = "../data/reconstructed/PCAVecArithm/PCA_pbmc.h5ad"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    sc.write(output_path, all_data)
 
 
 def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
@@ -125,9 +129,11 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = adata_list[3].var_names
     if p_type == "unbiased":
-        sc.write(f"../data/reconstructed/PCAVecArithm/PCA_CD4T.h5ad", all_Data)
+        output_path = "../data/reconstructed/PCAVecArithm/PCA_CD4T.h5ad"
     else:
-        sc.write(f"../data/reconstructed/PCAVecArithm/PCA_CD4T_biased.h5ad", all_Data)
+        output_path = "../data/reconstructed/PCAVecArithm/PCA_CD4T_biased.h5ad"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    sc.write(output_path, all_Data)
 
 
 if __name__ == "__main__":

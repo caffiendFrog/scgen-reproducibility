@@ -1,5 +1,6 @@
 # from hf import *
 
+import os
 import numpy as np
 import scanpy as sc
 import scgen
@@ -53,9 +54,11 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = ctrl_cell.var_names
     if p_type == "unbiased":
-        sc.write(f"../data/reconstructed/VecArithm/VecArithm_CD4T.h5ad", all_Data)
+        output_path = "../data/reconstructed/VecArithm/VecArithm_CD4T.h5ad"
     else:
-        sc.write(f"../data/reconstructed/VecArithm/VecArithm_CD4T_biased.h5ad", all_Data)
+        output_path = "../data/reconstructed/VecArithm/VecArithm_CD4T_biased.h5ad"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    sc.write(output_path, all_Data)
 
 
 def predict(cd_x, hfd_x, cd_y, p_type="unbiased"):

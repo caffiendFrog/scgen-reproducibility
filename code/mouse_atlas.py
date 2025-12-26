@@ -234,7 +234,9 @@ if __name__ == "__main__":
     train(300)
     # restore()
     corrected_mouse_atlas, latent_batch = vector_batch_removal(data, "Dataset", "Organ groups")
-    corrected_mouse_atlas.write("../data/reconstructed/scGen/mouse_atlas.h5ad")
+    output_path = "../data/reconstructed/scGen/mouse_atlas.h5ad"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    corrected_mouse_atlas.write(output_path)
     # sc.pp.pca(corrected_mouse_atlas, svd_solver="arpack")
     # sc.pp.neighbors(corrected_mouse_atlas, n_neighbors=25)
     # sc.tl.umap(corrected_mouse_atlas)

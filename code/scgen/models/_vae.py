@@ -195,6 +195,20 @@ class VAEArith:
                 latent: numpy nd-array
                     Returns array containing latent space encoding of 'data'
         """
+        # ADD VALIDATION: Check shape matches model expectations
+        if not isinstance(data, numpy.ndarray):
+            raise TypeError(f"Expected numpy array, got {type(data)}")
+        if data.ndim != 2:
+            raise ValueError(f"Expected 2D array, got {data.ndim}D array with shape {data.shape}")
+        if data.shape[0] == 0:
+            raise ValueError(f"Input data has 0 samples (rows)")
+        if data.shape[1] != self.x_dim:
+            raise ValueError(
+                f"Input data has {data.shape[1]} features, but model expects {self.x_dim} features. "
+                f"Shape: {data.shape}, Expected: [n_cells, {self.x_dim}]. "
+                f"This usually indicates a mismatch between training and inference data preprocessing."
+            )
+        
         latent = self.sess.run(self.z_mean, feed_dict={self.x: data, self.size: data.shape[0], self.is_training: False})
         return latent
 

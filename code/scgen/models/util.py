@@ -128,7 +128,7 @@ def training_data_provider(train_s, train_t):
     train_t_groups = []
     for i in train_t:
         if sparse.issparse(i.X):
-            train_t_x.append(i.X.toarray())
+            train_t_X.append(i.X.toarray())
         else:
             train_t_X.append(i.X)
         train_t_diet.append(i.obs["condition"].tolist())

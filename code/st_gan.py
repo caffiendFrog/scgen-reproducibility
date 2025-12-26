@@ -5,7 +5,7 @@ import scanpy as sc
 
 from data_reader import data_reader
 
-import tf.compat.v1 as tf
+import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
 
 

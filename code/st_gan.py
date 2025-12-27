@@ -101,7 +101,7 @@ def _do_dropout(x):
 
 def discriminator_stimulated(tensor, reuse=False, ):
     with tf.variable_scope("discriminator_s", reuse=reuse):
-        h = tf.keras.layers.Dense(units=700, kernel_initializer=initializer, use_bias=False)
+        h = tf.keras.layers.Dense(units=700, kernel_initializer=initializer, use_bias=False)(tensor)
         # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
         h = _work_around("discriminator_sn_700", 700, h, is_training)
         h = tf.nn.leaky_relu(h)

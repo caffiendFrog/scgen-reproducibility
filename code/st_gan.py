@@ -5,6 +5,7 @@ import numpy as np
 import scanpy as sc
 
 from data_reader import data_reader
+from utils import to_dense_array
 
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
@@ -321,13 +322,14 @@ if __name__ == "__main__":
     ctrl_CD4T = adata_list[1]
     from scipy import sparse
     if sys.argv[1] == "train":
-        if sparse.issparse(ctrl_CD4T.X):
-            ctrl_CD4T.X = ctrl_CD4T.X.toarray()
-        predicted_cells = predict(ctrl_CD4T.X)
-        for idx in (1, 2):
-            if sparse.issparse(adata_list[idx].X):
-                adata_list[idx].X = adata_list[idx].X.toarray()
-        all_Data = sc.AnnData(np.concatenate([adata_list[1].X, adata_list[2].X, predicted_cells]))
+        # Extract arrays and convert to dense, avoiding view modification warnings
+        ctrl_CD4T_X = to_dense_array(ctrl_CD4T.X)
+        predicted_cells = predict(ctrl_CD4T_X)
+        # Extract arrays for concatenation
+        ctrl_X = to_dense_array(adata_list[1].X)
+        stim_X = to_dense_array(adata_list[2].X)
+        predicted_cells = np.asarray(predicted_cells)
+        all_Data = sc.AnnData(np.concatenate([ctrl_X, stim_X, predicted_cells]))
         all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X) + ["real_stim"] * len(adata_list[2].X) + \
                                     ["pred_stim"] * len(predicted_cells)
         all_Data.var_names = adata_list[3].var_names

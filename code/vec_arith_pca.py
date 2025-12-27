@@ -111,12 +111,12 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
         train_real_stimulated = scgen.util.balancer(train_real_stimulated)
 
     import scipy.sparse as sparse
-    if sparse.issparse(train_real_cd.X):
-        train_real_cd.X =train_real_cd.X.toarray()
-        train_real_stimulated.X = to_dense_array(train_real_stimulated.X)
+    # Extract arrays and convert to dense, avoiding view modification warnings
+    train_real_cd_X = to_dense_array(train_real_cd.X)
+    train_real_stimulated_X = to_dense_array(train_real_stimulated.X)
 
-    train_real_stimulated_PCA = pca.transform(train_real_stimulated.X)
-    train_real_cd_PCA = pca.transform(train_real_cd.X)
+    train_real_stimulated_PCA = pca.transform(train_real_stimulated_X)
+    train_real_cd_PCA = pca.transform(train_real_cd_X)
 
     adata_list = scgen.util.extractor(data, cell_type, {"ctrl": ctrl_key, "stim": stim_key})
     # Extract arrays and convert to dense, avoiding view modification warnings

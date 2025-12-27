@@ -93,7 +93,7 @@ def _work_around(scope, feature_dim, h, training):
 
 
 def _do_dropout(x):
-    return tf.nn.dropout(x, rate=sdr_rate)
+    return tf.nn.dropout(x, rate=dr_rate)
 
 
 # network

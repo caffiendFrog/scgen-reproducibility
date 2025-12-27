@@ -129,7 +129,7 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     predicted_cells = np.asarray(predicted_cells)
 
     all_Data = sc.AnnData(np.concatenate([ctrl_X, stim_X, predicted_cells]))
-    all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X) + ["real_stim"] * len(adata_list[2].X) + \
+    all_Data.obs["condition"] = ["ctrl"] * len(ctrl_X) + ["real_stim"] * len(stim_X) + \
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = adata_list[3].var_names
     if p_type == "unbiased":

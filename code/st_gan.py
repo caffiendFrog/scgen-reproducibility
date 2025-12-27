@@ -330,7 +330,7 @@ if __name__ == "__main__":
         stim_X = to_dense_array(adata_list[2].X)
         predicted_cells = np.asarray(predicted_cells)
         all_Data = sc.AnnData(np.concatenate([ctrl_X, stim_X, predicted_cells]))
-        all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X) + ["real_stim"] * len(adata_list[2].X) + \
+        all_Data.obs["condition"] = ["ctrl"] * len(ctrl_X) + ["real_stim"] * len(stim_X) + \
                                     ["pred_stim"] * len(predicted_cells)
         all_Data.var_names = adata_list[3].var_names
         output_path = "../data/reconstructed/CGAN/cgan_cd4t.h5ad"

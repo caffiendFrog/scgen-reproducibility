@@ -5,6 +5,7 @@ import pandas as pd
 from scipy import stats, sparse
 from adjustText import adjust_text
 import matplotlib
+from utils import to_dense_array
 font = {'family' : 'Arial',
         # 'weight' : 'bold',
         'size'   : 14}
@@ -57,8 +58,12 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
     import seaborn as sns
     sns.set()
     sns.set(color_codes=True)
+    # Convert to dense array, avoiding view modification warnings
     if sparse.issparse(adata.X):
-        adata.X = adata.X.toarray()
+        # Check if adata is a view and copy if needed
+        if adata.is_view:
+            adata = adata.copy()
+        adata.X = to_dense_array(adata.X)
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
     ctrl = adata[adata.obs[condition_key] == axis_keys["x"]]
@@ -163,8 +168,12 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
     import seaborn as sns;
     sns.set()
     sns.set(color_codes=True)
+    # Convert to dense array, avoiding view modification warnings
     if sparse.issparse(adata.X):
-        adata.X = adata.X.toarray()
+        # Check if adata is a view and copy if needed
+        if adata.is_view:
+            adata = adata.copy()
+        adata.X = to_dense_array(adata.X)
     sc.tl.rank_genes_groups(adata, groupby=condition_key, n_genes=100, method="wilcoxon")
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
@@ -263,8 +272,12 @@ def binary_classifier(scg_object, adata, delta, condition_key, conditions, path_
         """
     # matplotlib.rcParams.update(matplotlib.rcParamsDefault)
     pyplot.close("all")
+    # Convert to dense array, avoiding view modification warnings
     if sparse.issparse(adata.X):
-        adata.X = adata.X.toarray()
+        # Check if adata is a view and copy if needed
+        if adata.is_view:
+            adata = adata.copy()
+        adata.X = to_dense_array(adata.X)
     cd = adata[adata.obs[condition_key] == conditions["ctrl"], :]
     stim = adata[adata.obs[condition_key] == conditions["stim"], :]
     all_latent_cd = scg_object.to_latent(cd.X)

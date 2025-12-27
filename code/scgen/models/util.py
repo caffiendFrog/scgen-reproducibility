@@ -296,10 +296,16 @@ def batch_removal(network, adata):
             batch_list[i] = temp
             batch_ind[i] = temp_ind
         max_batch_ann = batch_list[max_batch_ind]
+        # Extract arrays and modify, avoiding view modification warnings
         for study in batch_list:
             delta = np.average(max_batch_ann.X, axis=0) - np.average(batch_list[study].X, axis=0)
-            batch_list[study].X = delta + batch_list[study].X
-            temp_cell[batch_ind[study]].X = batch_list[study].X
+            # Extract array, modify, and create new AnnData to avoid view issues
+            modified_X = delta + batch_list[study].X
+            batch_list[study] = anndata.AnnData(modified_X, obs=batch_list[study].obs.copy(), var=batch_list[study].var.copy())
+            # Copy temp_cell before modifying to avoid view issues
+            if temp_cell.is_view:
+                temp_cell = temp_cell.copy()
+            temp_cell[batch_ind[study]].X = modified_X
         shared_ct.append(temp_cell)
     all_shared_ann = anndata.AnnData.concatenate(*shared_ct, batch_key="concat_batch")
     del all_shared_ann.obs["concat_batch"]

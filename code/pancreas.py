@@ -191,9 +191,12 @@ def vector_batch_removal():
                 max_batch_ind = i
             batch_list[i] = temp
         max_batch_ann = batch_list[max_batch_ind]
+        # Extract arrays and modify, avoiding view modification warnings
         for study in batch_list:
             delta = np.average(max_batch_ann.X, axis=0) - np.average(batch_list[study].X, axis=0)
-            batch_list[study].X = delta + batch_list[study].X
+            # Extract array, modify, and create new AnnData to avoid view issues
+            modified_X = delta + batch_list[study].X
+            batch_list[study] = sc.AnnData(modified_X, obs=batch_list[study].obs.copy(), var=batch_list[study].var.copy())
         corrected = sc.AnnData.concatenate(*list(batch_list.values()))
         shared_anns.append(corrected)
     all_shared_ann = sc.AnnData.concatenate(*shared_anns)

@@ -55,10 +55,8 @@ def reconstruct():
         cell_type_adata = data[data.obs["cell_type"] == cell_type]
         cell_type_ctrl = cell_type_adata[cell_type_adata.obs["condition"] == ctrl_key]
         cell_type_stim = cell_type_adata[cell_type_adata.obs["condition"] == stim_key]
-        if sparse.issparse(cell_type_ctrl.X):
-            cell_type_ctrl_PCA = pca.transform(cell_type_ctrl.X.toarray())
-        else:
-            cell_type_ctrl_PCA = pca.transform(cell_type_ctrl.X)
+        # Use to_dense_array for consistent sparse handling
+        cell_type_ctrl_PCA = pca.transform(to_dense_array(cell_type_ctrl.X))
         predicted_cells = predict(pca, train_real_cd_PCA, train_real_stimulated_PCA, cell_type_ctrl_PCA)
         # Extract arrays and convert to dense, ensuring all are numpy arrays
         ctrl_X = to_dense_array(cell_type_ctrl.X)
@@ -110,7 +108,6 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     if p_type == "unbiased":
         train_real_stimulated = scgen.util.balancer(train_real_stimulated)
 
-    import scipy.sparse as sparse
     # Extract arrays and convert to dense, avoiding view modification warnings
     train_real_cd_X = to_dense_array(train_real_cd.X)
     train_real_stimulated_X = to_dense_array(train_real_stimulated.X)

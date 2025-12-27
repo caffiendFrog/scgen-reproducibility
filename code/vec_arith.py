@@ -37,8 +37,9 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
         train_real_stimulated = scgen.util.balancer(train_real_stimulated)
 
     import scipy.sparse as sparse
+    # Extract arrays and convert to dense
     if sparse.issparse(train_real_cd.X):
-        train_real_cd = train_real_cd.toarray()
+        train_real_cd = to_dense_array(train_real_cd.X)
         train_real_stimulated = to_dense_array(train_real_stimulated.X)
     else:
         train_real_cd = train_real_cd.X

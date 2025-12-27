@@ -60,10 +60,11 @@ def reconstruct():
         else:
             cell_type_ctrl_PCA = pca.transform(cell_type_ctrl.X)
         predicted_cells = predict(pca, train_real_cd_PCA, train_real_stimulated_PCA, cell_type_ctrl_PCA)
-        if sparse.issparse(cell_type_ctrl.X):
-            all_Data = sc.AnnData(np.concatenate([cell_type_ctrl.X.toarray(), to_dense_array(cell_type_stim.X), predicted_cells]))
-        else:
-            all_Data = sc.AnnData(np.concatenate([cell_type_ctrl.X, cell_type_stim.X, predicted_cells]))
+        # Extract arrays and convert to dense, ensuring all are numpy arrays
+        ctrl_X = to_dense_array(cell_type_ctrl.X)
+        stim_X = to_dense_array(cell_type_stim.X)
+        predicted_cells = np.asarray(predicted_cells)
+        all_Data = sc.AnnData(np.concatenate([ctrl_X, stim_X, predicted_cells]))
         all_Data.obs["condition"] = [f"{cell_type}_ctrl"] * cell_type_ctrl.shape[0] + [f"{cell_type}_real_stim"] * \
                                     cell_type_stim.shape[0] + \
                                     [f"{cell_type}_pred_stim"] * len(predicted_cells)
@@ -118,13 +119,16 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     train_real_cd_PCA = pca.transform(train_real_cd.X)
 
     adata_list = scgen.util.extractor(data, cell_type, {"ctrl": ctrl_key, "stim": stim_key})
-    if sparse.issparse(adata_list[1].X):
-        adata_list[1].X = adata_list[1].X.toarray()
-        adata_list[2].X = to_dense_array(adata_list[2].X)
-    ctrl_CD4T_PCA = pca.transform(adata_list[1].X)
+    # Extract arrays and convert to dense, avoiding view modification warnings
+    ctrl_X = to_dense_array(adata_list[1].X)
+    stim_X = to_dense_array(adata_list[2].X)
+    ctrl_CD4T_PCA = pca.transform(ctrl_X)
     predicted_cells = predict(pca, train_real_cd_PCA, train_real_stimulated_PCA, ctrl_CD4T_PCA, p_type)
+    
+    # Ensure predicted_cells is a numpy array
+    predicted_cells = np.asarray(predicted_cells)
 
-    all_Data = sc.AnnData(np.concatenate([adata_list[1].X, adata_list[2].X, predicted_cells]))
+    all_Data = sc.AnnData(np.concatenate([ctrl_X, stim_X, predicted_cells]))
     all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X) + ["real_stim"] * len(adata_list[2].X) + \
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = adata_list[3].var_names

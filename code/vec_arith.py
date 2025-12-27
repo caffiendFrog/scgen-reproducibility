@@ -43,13 +43,16 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     else:
         train_real_cd = train_real_cd.X
         train_real_stimulated = train_real_stimulated.X
-    if sparse.issparse(ctrl_cell.X):
-        ctrl_cell.X = ctrl_cell.X.toarray()
-        stim_cell.X = to_dense_array(stim_cell.X)
-    predicted_cells = predict(train_real_cd, train_real_stimulated, ctrl_cell.X)
+    # Extract arrays and convert to dense, avoiding view modification warnings
+    ctrl_X = to_dense_array(ctrl_cell.X)
+    stim_X = to_dense_array(stim_cell.X)
+    predicted_cells = predict(train_real_cd, train_real_stimulated, ctrl_X)
+    
+    # Ensure predicted_cells is a numpy array
+    predicted_cells = np.asarray(predicted_cells)
 
     print("Prediction has been finished")
-    all_Data = sc.AnnData(np.concatenate([ctrl_cell.X, stim_cell.X, predicted_cells]))
+    all_Data = sc.AnnData(np.concatenate([ctrl_X, stim_X, predicted_cells]))
     all_Data.obs["condition"] = ["ctrl"] * ctrl_cell.shape[0] + ["real_stim"] * stim_cell.shape[0] + \
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = ctrl_cell.var_names

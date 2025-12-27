@@ -201,7 +201,7 @@ def generator_ctrl_stim(image, reuse=False, ):
         h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
         h = tf.keras.layers.Dense(units=50, kernel_initializer=initializer, use_bias=False, )(h)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
         h = _work_around("generator_bsn_50", 50, h, is_training)
         h = tf.nn.leaky_relu(h)
         # h = tf.layers.dropout(h, dr_rate, training=is_training)

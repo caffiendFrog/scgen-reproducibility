@@ -59,18 +59,40 @@ def reconstruct(data,use_data = False):
 
     reconstruct = sess.run(X_hat,feed_dict = {z_mean : latent ,is_training:False})
     return  reconstruct
+
+# =============================== Batch Normalization Workaround ======================================
+# Workaround for tf.layers.batch_normalization which isn't available in TensorFlow 2.x
+# This manually implements batch normalization using tf.nn functions that still work
+def _work_around(scope, feature_dim, h, training):
+    """
+    Manual batch normalization workaround for TensorFlow 2.x compatibility.
+    
+    How it works:
+    1. Creates trainable scale (gamma) and offset (beta) variables
+    2. Computes batch mean and variance using tf.nn.moments
+    3. Applies normalization: (x - mean) / sqrt(variance + epsilon) * scale + offset
+    
+    This is equivalent to tf.layers.batch_normalization but uses low-level TF1.x APIs
+    that are still available in TF2.x via compat.v1.
+    """
+    with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+        scale = tf.get_variable("scale", shape=[feature_dim], initializer=tf.ones_initializer())
+        offset = tf.get_variable("offset", shape=[feature_dim], initializer=tf.zeros_initializer())
+        batch_mean, batch_var = tf.nn.moments(h, axes=[0])
+        return tf.nn.batch_normalization(h, batch_mean, batch_var, offset, scale, variance_epsilon=1e-5)
+
 # =============================== Q(z|X) ======================================
 
 def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
         h = tf.layers.dense(inputs=X, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = _work_around("gq_bn_800_1", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("gq_bn_800_2", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         mean =  tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
@@ -91,13 +113,13 @@ def P(z,reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
         h = tf.layers.dense(inputs=z,units= 800,kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = _work_around("gp_bn_800_1", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
 
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = _work_around("gp_bn_800_2", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)

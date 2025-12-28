@@ -54,7 +54,12 @@ class CVAE:
         self._create_network()
         self._loss_function()
         init = tensorflow.global_variables_initializer()
-        self.sess = tensorflow.InteractiveSession()
+        # Configure GPU settings
+        config = tensorflow.ConfigProto()
+        config.gpu_options.allow_growth = True  # Allow GPU memory to grow dynamically
+        # Optionally set which GPU to use (uncomment and set if you have multiple GPUs):
+        # config.gpu_options.visible_device_list = "0"  # Use GPU 0
+        self.sess = tensorflow.InteractiveSession(config=config)
         self.saver = tensorflow.train.Saver(max_to_keep=1)
         self.sess.run(init)
 

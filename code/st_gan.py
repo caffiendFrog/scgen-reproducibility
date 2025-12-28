@@ -270,7 +270,12 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     update_G = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(gen_loss,
                                                                             var_list=gen_sb_variables + gen_bs_variables)
 global_step = tf.Variable(0, name='global_step', trainable=False, dtype=tf.int32)
-sess = tf.InteractiveSession()
+# Configure GPU settings
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True  # Allow GPU memory to grow dynamically
+# Optionally set which GPU to use (uncomment and set if you have multiple GPUs):
+# config.gpu_options.visible_device_list = "0"  # Use GPU 0
+sess = tf.InteractiveSession(config=config)
 saver = tf.train.Saver(max_to_keep=1)
 init = tf.global_variables_initializer().run()
 

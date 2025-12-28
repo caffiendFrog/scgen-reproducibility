@@ -54,8 +54,24 @@ class VAEArith:
         # Configure GPU settings
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True  # Allow GPU memory to grow dynamically
+        config.allow_soft_placement = True  # Allow fallback to CPU if GPU operation not available
+        config.log_device_placement = True  # Log which device operations are placed on (set to False to reduce verbosity)
         # Optionally set which GPU to use (uncomment and set if you have multiple GPUs):
         # config.gpu_options.visible_device_list = "0"  # Use GPU 0
+        # Verify GPU availability
+        try:
+            from tensorflow.python.client import device_lib
+            local_device_protos = device_lib.list_local_devices()
+            gpu_devices = [x.name for x in local_device_protos if x.device_type == 'GPU']
+            if gpu_devices:
+                log.info(f"GPU devices available: {gpu_devices}")
+                print(f"GPU devices available: {gpu_devices}")
+            else:
+                log.warning("No GPU devices found. Training will use CPU.")
+                print("WARNING: No GPU devices found. Training will use CPU.")
+        except Exception as e:
+            log.warning(f"Could not check GPU availability: {e}")
+            print(f"WARNING: Could not check GPU availability: {e}")
         self.sess = tf.Session(config=config)
         self.saver = tf.train.Saver(max_to_keep=1)
         self.init = tf.global_variables_initializer().run(session=self.sess)

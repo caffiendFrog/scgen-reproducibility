@@ -51,7 +51,12 @@ class VAEArith:
         self.init_w = tf.glorot_uniform_initializer()
         self._create_network()
         self._loss_function()
-        self.sess = tf.Session()
+        # Configure GPU settings
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True  # Allow GPU memory to grow dynamically
+        # Optionally set which GPU to use (uncomment and set if you have multiple GPUs):
+        # config.gpu_options.visible_device_list = "0"  # Use GPU 0
+        self.sess = tf.Session(config=config)
         self.saver = tf.train.Saver(max_to_keep=1)
         self.init = tf.global_variables_initializer().run(session=self.sess)
 

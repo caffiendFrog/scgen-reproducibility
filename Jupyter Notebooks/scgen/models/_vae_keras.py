@@ -428,7 +428,7 @@ class VAEArithKeras:
     def train(self, train_data, vis_data,
               validation_data=None,
               n_epochs=25,
-              batch_size=32,
+              batch_size=512,  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
               early_stop_limit=20,
               threshold=0.0025,
               initial_run=True,

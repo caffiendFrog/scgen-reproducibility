@@ -291,7 +291,7 @@ class CVAE:
         """
         self.saver.restore(self.sess, self.model_to_use)
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=512, early_stop_limit=20,  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
               threshold=0.00025, initial_run=True, shuffle=True):
         """
             Trains the network `n_epochs` times with given `train_data`

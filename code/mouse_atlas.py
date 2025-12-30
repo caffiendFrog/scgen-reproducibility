@@ -22,7 +22,7 @@ else:
 
 sc.settings.figdir = "../results"
 model_to_use = "../models/mouse_atlas/scgen"
-batch_size = 32
+batch_size = 512  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
 train_real = data
 input_matrix = data.X
 ind_list = [i for i in range(input_matrix.shape[0])]

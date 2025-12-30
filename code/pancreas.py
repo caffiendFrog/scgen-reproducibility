@@ -184,6 +184,7 @@ def train(n_epochs, full_training=True, initial_run=True):
                     [Solver, vae_loss], feed_dict={X: X_mb, time_step: current_step,
                                                    size: batch_size, is_training: True})
                 train_loss += D_loss_curr
+    os.makedirs(os.path.dirname(model_to_use), exist_ok=True)
     save_path = saver.save(sess, model_to_use)
     print("Model saved in file: %s" % save_path)
     print(f"total number of trained epochs is {current_step}")

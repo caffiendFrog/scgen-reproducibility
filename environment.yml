@@ -3,21 +3,42 @@ channels:
     - conda-forge
     - defaults
 dependencies:
-    # Core
-    - python=3.12
+    # Core Python and scientific computing
+    - python=3.10
     - numpy
     - scipy
     - matplotlib
+    - pandas
+    - seaborn
 
-    # Domain - single cell
+    # Single-cell genomics
     - scanpy
+    - anndata
 
     # Machine Learning
     - tensorflow
+    - scikit-learn
+
+    # Deep Learning (Keras)
+    - keras
+
+    # Hyperparameter optimization
+    - pip
+
+    # Jupyter support
+    - ipykernel
+    - jupyter
+    - notebook
 
     # Utilities
     - wget
-    - adjusttext
-    - get_version
 
-    - pip
+    # R integration (optional, for notebooks using R)
+    - rpy2
+
+    # Pip packages
+    - pip:
+        - adjustText
+        - get-version
+        - hyperas
+        - hyperopt

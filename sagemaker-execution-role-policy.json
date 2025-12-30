@@ -1,0 +1,254 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "SageMakerStudioAppAccess",
+            "Effect": "Allow",
+            "Action": [
+                "sagemaker:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3AccessForStudio",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+                "s3:ListAllMyBuckets"
+            ],
+            "Resource": [
+                "arn:aws:s3:::sagemaker-*",
+                "arn:aws:s3:::sagemaker-*/*",
+                "arn:aws:s3:::aws-glue-*",
+                "arn:aws:s3:::aws-glue-*/*"
+            ]
+        },
+        {
+            "Sid": "EFSFullAccess",
+            "Effect": "Allow",
+            "Action": [
+                "elasticfilesystem:DescribeFileSystems",
+                "elasticfilesystem:DescribeMountTargets",
+                "elasticfilesystem:DescribeAccessPoints",
+                "elasticfilesystem:DescribeMountTargetSecurityGroups",
+                "elasticfilesystem:ClientMount",
+                "elasticfilesystem:ClientWrite",
+                "elasticfilesystem:ClientRootAccess"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EC2NetworkAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeRouteTables",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeAccountAttributes"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "KMSDecrypt",
+            "Effect": "Allow",
+            "Action": [
+                "kms:Decrypt",
+                "kms:Encrypt",
+                "kms:ReEncrypt*",
+                "kms:GenerateDataKey",
+                "kms:GenerateDataKeyWithoutPlaintext",
+                "kms:DescribeKey"
+            ],
+            "Resource": [
+                "arn:aws:kms:*:167819473688:key/*"
+            ],
+            "Condition": {
+                "StringLike": {
+                    "kms:ViaService": [
+                        "sagemaker.*.amazonaws.com",
+                        "s3.*.amazonaws.com",
+                        "elasticfilesystem.*.amazonaws.com"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "ECRAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ecr:GetAuthorizationToken",
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:DescribeRepositories",
+                "ecr:ListImages"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "CloudWatchLogs",
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+                "logs:GetLogEvents",
+                "logs:FilterLogEvents"
+            ],
+            "Resource": "arn:aws:logs:*:167819473688:*"
+        },
+        {
+            "Sid": "CloudWatchMetrics",
+            "Effect": "Allow",
+            "Action": [
+                "cloudwatch:PutMetricData",
+                "cloudwatch:GetMetricStatistics",
+                "cloudwatch:ListMetrics"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "SecretsManagerAccess",
+            "Effect": "Allow",
+            "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret"
+            ],
+            "Resource": "arn:aws:secretsmanager:*:167819473688:secret:*"
+        },
+        {
+            "Sid": "SystemsManagerAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:GetParametersByPath"
+            ],
+            "Resource": [
+                "arn:aws:ssm:*:167819473688:parameter/aws/sagemaker/*",
+                "arn:aws:ssm:*:167819473688:parameter/AmazonSageMaker-*"
+            ]
+        },
+        {
+            "Sid": "CodeCommitAccess",
+            "Effect": "Allow",
+            "Action": [
+                "codecommit:GitPush",
+                "codecommit:GitPull",
+                "codecommit:BatchGetRepositories",
+                "codecommit:GetRepository",
+                "codecommit:ListRepositories"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "GlueAccess",
+            "Effect": "Allow",
+            "Action": [
+                "glue:GetDatabase",
+                "glue:GetDatabases",
+                "glue:GetTable",
+                "glue:GetTables",
+                "glue:GetPartition",
+                "glue:GetPartitions",
+                "glue:BatchCreatePartition",
+                "glue:BatchDeletePartition",
+                "glue:CreateDatabase",
+                "glue:CreateTable",
+                "glue:DeleteDatabase",
+                "glue:DeleteTable",
+                "glue:UpdateDatabase",
+                "glue:UpdateTable"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AthenaAccess",
+            "Effect": "Allow",
+            "Action": [
+                "athena:StartQueryExecution",
+                "athena:StopQueryExecution",
+                "athena:GetQueryExecution",
+                "athena:GetQueryResults",
+                "athena:ListQueryExecutions",
+                "athena:ListDatabases",
+                "athena:ListTableMetadata",
+                "athena:GetDatabase",
+                "athena:GetTableMetadata"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "RedshiftAccess",
+            "Effect": "Allow",
+            "Action": [
+                "redshift:DescribeClusters",
+                "redshift:DescribeClusterSubnetGroups",
+                "redshift:DescribeClusterSecurityGroups"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EventBridgeAccess",
+            "Effect": "Allow",
+            "Action": [
+                "events:PutEvents",
+                "events:DescribeRule",
+                "events:ListRules"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "StepFunctionsAccess",
+            "Effect": "Allow",
+            "Action": [
+                "states:DescribeExecution",
+                "states:DescribeStateMachine",
+                "states:StartExecution",
+                "states:StopExecution",
+                "states:ListExecutions"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "LambdaInvoke",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:InvokeFunction"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "IAMReadOnly",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole",
+                "iam:ListRoles",
+                "iam:ListAttachedRolePolicies",
+                "iam:GetRolePolicy",
+                "iam:ListRolePolicies"
+            ],
+            "Resource": [
+                "arn:aws:iam::167819473688:role/*"
+            ]
+        },
+        {
+            "Sid": "STSCallerIdentity",
+            "Effect": "Allow",
+            "Action": [
+                "sts:GetCallerIdentity"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
+

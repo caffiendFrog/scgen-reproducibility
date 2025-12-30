@@ -27,22 +27,62 @@ figure       | notebook path
 | [*Supplemental Figure 11*](https://nbviewer.jupyter.org/github/M0hammadL/scGen_reproducibility/blob/master/Jupyter%20Notebooks/SupplFig11.ipynb)| Jupyter Notebooks/SupplFig11.ipynb| 
 | [*Supplemental Figure 12*](https://nbviewer.jupyter.org/github/M0hammadL/scGen_reproducibility/blob/master/Jupyter%20Notebooks/SupplFig12.ipynb)| Jupyter Notebooks/SupplFig12.ipynb| 
 
-To run the notebooks and scripts you need following packages :
+## Required Packages
 
-tensorflow, scanpy, numpy, matplotlib, scipy, wget, adjustText, get_version
-
+The environment includes all necessary packages:
+- **Core**: tensorflow, scanpy, numpy, matplotlib, scipy, pandas, seaborn
+- **Single-cell**: scanpy, anndata
+- **Machine Learning**: tensorflow, keras, scikit-learn
+- **Utilities**: wget, adjustText, get-version, hyperas, hyperopt
+- **Jupyter**: ipykernel, jupyter, notebook
+- **R Integration**: rpy2 (for notebooks using R)
 
 ## Getting Started
 
+### 1. Create and Activate the Conda Environment
+
 ```bash
+# Create the environment from environment.yml
 conda env create -f environment.yml
-conda init
+
+# Activate the environment
 conda activate scgen-repro-env
+```
+
+### 2. Register Jupyter Kernel (Optional but Recommended)
+
+To use this environment as a kernel in Jupyter notebooks:
+
+**On Linux/Mac:**
+```bash
+bash setup_kernel.sh
+```
+
+**On Windows (PowerShell):**
+```powershell
+.\setup_kernel.ps1
+```
+
+**On Windows (Command Prompt):**
+```cmd
+setup_kernel.bat
+```
+
+**Or manually:**
+```bash
+python -m ipykernel install --user --name scgen-repro-env --display-name "Python (scgen-repro-env)"
+```
+
+### 3. Download Data and Train Models
+
+```bash
 cd code/
 python DataDownloader.py
 python ModelTrainer.py all
 ```
 
-Then you can run each notebook and reproduce the results.
+### 4. Run Notebooks
+
+After registering the kernel, you can select "Python (scgen-repro-env)" as the kernel in your Jupyter notebooks. Then you can run each notebook and reproduce the results.
 
 All datasets are available in this drive [directory](https://drive.google.com/drive/folders/1v3qySFECxtqWLRhRTSbfQDFqdUCAXql3).

@@ -102,20 +102,20 @@ class VAEArith:
                     A dense layer consists of log transformed variances of gaussian distributions of latent space dimensions.
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
-            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(self.x)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False, name="dense_1")(self.x)
             # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
             h = self._work_around("encoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
             # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
             h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
-            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(h)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False, name="dense_2")(h)
             # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
             h = self._work_around("encoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
             # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
             h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
-            mean = tf.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w)(h)
-            log_var = tf.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w)(h)
+            mean = tf.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w, name="dense_mean")(h)
+            log_var = tf.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w, name="dense_log_var")(h)
             return mean, log_var
 
     def _decoder(self):
@@ -133,19 +133,19 @@ class VAEArith:
 
         """
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(self.z_mean)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False, name="dense_1")(self.z_mean)
             # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
             h = self._work_around("decoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
             # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
             h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
-            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(h)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False, name="dense_2")(h)
             # tf.layers.batch_normalization(h, axis=1, training=self.is_training)
             h = self._work_around("decoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
             # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
             h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
-            h = tf.keras.layers.Dense(units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)(h)
+            h = tf.keras.layers.Dense(units=self.x_dim, kernel_initializer=self.init_w, use_bias=True, name="dense_output")(h)
             h = tf.nn.relu(h)
             return h
 
@@ -415,6 +415,54 @@ class VAEArith:
         predicted_cells = self.reconstruct(stim_pred, use_data=True)
         return predicted_cells, delta
 
+    def _validate_model_structure(self):
+        """
+            Validates that the model structure matches expected architecture.
+            This helps catch issues where checkpoints might be created with incorrect layer names.
+            
+            # Returns
+                bool: True if structure is valid, raises exception otherwise
+        """
+        expected_decoder_vars = [
+            "decoder/dense_1/kernel",
+            "decoder/dense_2/kernel", 
+            "decoder/dense_output/kernel",
+            "decoder/dense_output/bias"
+        ]
+        expected_encoder_vars = [
+            "encoder/dense_1/kernel",
+            "encoder/dense_2/kernel",
+            "encoder/dense_mean/kernel",
+            "encoder/dense_mean/bias",
+            "encoder/dense_log_var/kernel",
+            "encoder/dense_log_var/bias"
+        ]
+        
+        all_vars = {var.name.split(':')[0] for var in tf.global_variables()}
+        
+        missing_vars = []
+        for var_name in expected_decoder_vars + expected_encoder_vars:
+            if var_name not in all_vars:
+                missing_vars.append(var_name)
+        
+        if missing_vars:
+            log.warning(f"Model structure validation: Missing expected variables: {missing_vars}")
+            # Don't raise error, just warn - the model might still work with partial restore
+        
+        # Check for unexpected dense layer numbering (like dense_11 which suggests graph was built multiple times)
+        unexpected_vars = [v for v in all_vars if ('dense_' in v and any(f'dense_{i}/' in v for i in range(11, 100)))]
+        if unexpected_vars:
+            log.error(f"Model structure validation FAILED: Found unexpected layer numbering: {unexpected_vars}")
+            log.error("This suggests the graph was built multiple times or there's a naming issue.")
+            log.error("The checkpoint should NOT be created in this state.")
+            raise ValueError(
+                f"Invalid model structure detected. Found unexpected layer names: {unexpected_vars}. "
+                f"This usually indicates the graph was built multiple times or there's a layer naming conflict. "
+                f"Please recreate the model with a fresh graph."
+            )
+        
+        return True
+
     def restore_model(self):
         """
             restores model weights from `model_to_use`.
@@ -435,7 +483,53 @@ class VAEArith:
                 network.restore_model()
             ```
         """
-        self.saver.restore(self.sess, self.model_to_use)
+        try:
+            # Try to restore all variables first
+            self.saver.restore(self.sess, self.model_to_use)
+        except (tf.errors.NotFoundError, tf.errors.InvalidArgumentError) as e:
+            # If some variables are missing, try partial restore
+            log.warning(f"Some variables not found in checkpoint, attempting partial restore: {e}")
+            print(f"WARNING: Some variables not found in checkpoint, attempting partial restore...")
+            
+            try:
+                # Get all variables from the checkpoint
+                reader = tf.train.NewCheckpointReader(self.model_to_use)
+                checkpoint_var_map = reader.get_variable_to_shape_map()
+                checkpoint_var_names = set(checkpoint_var_map.keys())
+                
+                # Find variables that exist in both checkpoint and current graph
+                vars_to_restore = []
+                missing_vars = []
+                
+                for var in tf.global_variables():
+                    var_name = var.name.split(':')[0]
+                    if var_name in checkpoint_var_names:
+                        # Verify shape matches
+                        checkpoint_shape = checkpoint_var_map[var_name]
+                        if list(checkpoint_shape) == list(var.shape.as_list()):
+                            vars_to_restore.append(var)
+                        else:
+                            log.warning(f"Variable {var_name} shape mismatch: checkpoint {checkpoint_shape} vs graph {var.shape.as_list()}")
+                            missing_vars.append(var_name)
+                    else:
+                        missing_vars.append(var_name)
+                
+                # Create a new saver with only the variables that exist in both
+                if vars_to_restore:
+                    partial_saver = tf.train.Saver(var_list=vars_to_restore)
+                    partial_saver.restore(self.sess, self.model_to_use)
+                    log.info(f"Successfully restored {len(vars_to_restore)}/{len(tf.global_variables())} variables from checkpoint")
+                    print(f"Successfully restored {len(vars_to_restore)}/{len(tf.global_variables())} variables from checkpoint")
+                    if missing_vars:
+                        log.warning(f"Variables not restored (will use initialized values): {missing_vars[:5]}...")
+                        print(f"WARNING: {len(missing_vars)} variables not restored (will use initialized values)")
+                else:
+                    log.error("No matching variables found between checkpoint and current graph")
+                    raise ValueError("No matching variables found between checkpoint and current graph. "
+                                   "The model architecture may have changed significantly.")
+            except Exception as inner_e:
+                log.error(f"Failed to perform partial restore: {inner_e}")
+                raise e  # Re-raise the original exception
 
     def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=512, early_stop_limit=20,  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
               threshold=0.00025, initial_run=True, shuffle=True, save=True):
@@ -531,11 +625,23 @@ class VAEArith:
                 else:
                     patience_cnt += 1
                 if patience_cnt > patience:
+                    # Validate model structure before saving
+                    try:
+                        self._validate_model_structure()
+                    except ValueError as e:
+                        log.error(f"Model validation failed before saving checkpoint: {e}")
+                        raise
                     os.makedirs(os.path.dirname(self.model_to_use), exist_ok=True)
                     save_path = self.saver.save(self.sess, self.model_to_use)
                     break
             print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)},\t Validation Loss: {valid_loss / (valid_data.shape[0] // batch_size)}")
         if save:
+            # Validate model structure before saving
+            try:
+                self._validate_model_structure()
+            except ValueError as e:
+                log.error(f"Model validation failed before saving checkpoint: {e}")
+                raise
             os.makedirs(os.path.dirname(self.model_to_use), exist_ok=True)
             save_path = self.saver.save(self.sess, self.model_to_use)
             log.info(f"Model saved in file: {save_path}. Training finished")

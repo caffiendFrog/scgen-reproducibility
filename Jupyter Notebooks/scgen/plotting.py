@@ -58,21 +58,38 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
     import seaborn as sns
     sns.set()
     sns.set(color_codes=True)
-    # Convert to dense array, avoiding view modification warnings
+    # Convert to dense array, matching 2018 behavior
+    # In 2018, modifying a view's .X would modify the parent, so all views saw dense data
+    # To replicate this, we need to ensure the underlying data is dense
+    # If it's a view, we need to access the parent and convert it
     if sparse.issparse(adata.X):
-        # Check if adata is a view and copy if needed
+        # If it's a view, we need to work with the actual data, not a copy
+        # In 2018, this would have modified the parent directly
+        # For now, copy if view to avoid warnings, but ensure all subsets see dense data
         if adata.is_view:
+            # Copy the view to get actual data
             adata = adata.copy()
+        # Convert to dense - this ensures all future views will see dense data
         adata.X = to_dense_array(adata.X)
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
     ctrl = adata[adata.obs[condition_key] == axis_keys["x"]]
+    # Ensure subsets are using dense arrays (they should be since parent is dense, but verify)
+    if sparse.issparse(stim.X):
+        stim.X = to_dense_array(stim.X)
+    if sparse.issparse(ctrl.X):
+        ctrl.X = to_dense_array(ctrl.X)
     if diff_genes is not None:
         if hasattr(diff_genes, "tolist"):
             diff_genes = diff_genes.tolist()
         adata_diff = adata[:, diff_genes]
         stim_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["y"]]
         ctrl_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["x"]]
+        # Ensure diff subsets are dense
+        if sparse.issparse(stim_diff.X):
+            stim_diff.X = to_dense_array(stim_diff.X)
+        if sparse.issparse(ctrl_diff.X):
+            ctrl_diff.X = to_dense_array(ctrl_diff.X)
         x_diff = numpy.average(ctrl_diff.X, axis=0)
         y_diff = numpy.average(stim_diff.X, axis=0)
         m, b, r_value_diff, p_value_diff, std_err_diff = stats.linregress(x_diff, y_diff)

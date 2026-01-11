@@ -1,4 +1,4 @@
-name: scgen-repor-env
+name: scgen-repro-env
 channels:
   - conda-forge
   - defaults

@@ -40,7 +40,7 @@ figure       | notebook path
 1. Create and activate the conda environment:
    ```bash
    bash scripts/bootstrap_mac.sh
-   conda activate scgen-repor-env
+   conda activate scgen-repro-env
    ```
 
 2. Create the symlink (replaces duplicate `scgen` directory):
@@ -53,7 +53,7 @@ figure       | notebook path
 1. Create and activate the conda environment:
    ```powershell
    .\scripts\bootstrap_win.ps1
-   conda activate scgen-repor-env
+   conda activate scgen-repro-env
    ```
    Or use the convenience batch file:
    ```cmd

@@ -1,3 +1,3 @@
 # Activation helper for Windows
 
-conda activate scgen-repor-env
+conda activate scgen-repro-env

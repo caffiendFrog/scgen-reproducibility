@@ -27,4 +27,8 @@ dependencies:
     - hyperopt
     # Optional dependencies for specific notebooks
     - bbknn
-    - rpy2
+    # Note: rpy2 requires R to be installed on the system
+    # To install rpy2, first install R, then run:
+    #   conda install -c conda-forge rpy2
+    # Or if R is already installed:
+    #   pip install rpy2

@@ -1,10 +1,12 @@
 import logging
 import os
 
-import tensorflow
+from scgen.models.util import shuffle_data, label_encoder
 from scipy import sparse
 
-from scgen.models.util import shuffle_data, label_encoder
+import tensorflow.compat.v1 as tensorflow
+tensorflow.disable_v2_behavior()
+
 
 log = logging.getLogger(__file__)
 
@@ -48,14 +50,29 @@ class CVAE:
         self.y = tensorflow.placeholder(tensorflow.float32, shape=[None, 1], name="labels")
         self.time_step = tensorflow.placeholder(tensorflow.int32)
         self.size = tensorflow.placeholder(tensorflow.int32)
-        self.init_w = tensorflow.contrib.layers.xavier_initializer()
+        self.init_w = tensorflow.glorot_uniform_initializer()
         self._create_network()
         self._loss_function()
         init = tensorflow.global_variables_initializer()
-        self.sess = tensorflow.InteractiveSession()
+        # Configure GPU settings
+        config = tensorflow.ConfigProto()
+        config.gpu_options.allow_growth = True  # Allow GPU memory to grow dynamically
+        # Optionally set which GPU to use (uncomment and set if you have multiple GPUs):
+        # config.gpu_options.visible_device_list = "0"  # Use GPU 0
+        self.sess = tensorflow.InteractiveSession(config=config)
         self.saver = tensorflow.train.Saver(max_to_keep=1)
         self.sess.run(init)
 
+    def _work_around(self, scope, feature_dim, h, training):
+        with tensorflow.variable_scope(scope, reuse=tensorflow.AUTO_REUSE):
+            scale = tensorflow.get_variable("scale", shape=[feature_dim], initializer=tensorflow.ones_initializer())
+            offset = tensorflow.get_variable("offset", shape=[feature_dim], initializer=tensorflow.zeros_initializer())
+            batch_mean, batch_var = tensorflow.nn.moments(h, axes=[0])
+            return tensorflow.nn.batch_normalization(h, batch_mean, batch_var, offset, scale, variance_epsilon=1e-5)
+
+    def _do_dropout(self, x):
+        return tensorflow.nn.dropout(x, rate=self.dr_rate)
+    
     def _encoder(self):
         """
             Constructs the encoder sub-network of C-VAE. This function implements the
@@ -73,15 +90,18 @@ class CVAE:
         """
         with tensorflow.variable_scope("encoder", reuse=tensorflow.AUTO_REUSE):
             xy = tensorflow.concat([self.x, self.y], axis=1)
-            h = tensorflow.layers.dense(inputs=xy, units=700, kernel_initializer=self.init_w, use_bias=False)
-            h = tensorflow.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = tensorflow.keras.layers.Dense(units=700, kernel_initializer=self.init_w, use_bias=False)(xy)
+            # h = tensorflow.keras.layers.BatchNormalization(axis=1)(h, training=self.is_training)
+            h = self._work_around("encoder_bn_700", 700, h, self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = tensorflow.layers.dense(inputs=h, units=400, kernel_initializer=self.init_w, use_bias=False)
-            h = tensorflow.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = tensorflow.keras.layers.Dense(units=400, kernel_initializer=self.init_w, use_bias=False)(h)
+            # h = tensorflow.keras.layers.BatchNormalization(axis=1)(h, training=self.is_training)
+            h = self._work_around("encoder_bn_400", 400, h, self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = tensorflow.layers.dropout(h, self.dr_rate, training=self.is_training)
-            mean = tensorflow.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
-            log_var = tensorflow.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            # h = tensorflow.layers.dropout(h, self.dr_rate, training=self.is_training)
+            h = tensorflow.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            mean = tensorflow.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w)(h)
+            log_var = tensorflow.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w)(h)
             return mean, log_var
 
     def _decoder(self):
@@ -100,14 +120,17 @@ class CVAE:
         """
         with tensorflow.variable_scope("decoder", reuse=tensorflow.AUTO_REUSE):
             xy = tensorflow.concat([self.z_mean, self.y], axis=1)
-            h = tensorflow.layers.dense(inputs=xy, units=400, kernel_initializer=self.init_w, use_bias=False)
-            h = tensorflow.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = tensorflow.keras.layers.Dense(units=400, kernel_initializer=self.init_w, use_bias=False)(xy)
+            # h = tensorflow.keras.layers.BatchNormalization(axis=1)(h, training=self.is_training)
+            h = self._work_around("decoder_bn_400", 400, h, self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = tensorflow.layers.dense(inputs=h, units=700, kernel_initializer=self.init_w, use_bias=False)
-            h = tensorflow.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = tensorflow.keras.layers.Dense(units=700, kernel_initializer=self.init_w, use_bias=False)(h)
+            # h = tensorflow.keras.layers.BatchNormalization(axis=1)(h, training=self.is_training)
+            h = self._work_around("decoder_bn_700", 700, h, self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = tensorflow.layers.dropout(h, self.dr_rate, training=self.is_training)
-            h = tensorflow.layers.dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
+            # h = tensorflow.layers.dropout(h, self.dr_rate, training=self.is_training)
+            h = tensorflow.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            h = tensorflow.keras.layers.Dense(units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)(h)
             h = tensorflow.nn.relu(h)
             return h
 
@@ -241,7 +264,7 @@ class CVAE:
             ```
         """
         if sparse.issparse(data.X):
-            stim_pred = self._reconstruct(data.X.A, labels)
+            stim_pred = self._reconstruct(data.X.toarray(), labels)
         else:
             stim_pred = self._reconstruct(data.X, labels)
         return stim_pred
@@ -268,8 +291,8 @@ class CVAE:
         """
         self.saver.restore(self.sess, self.model_to_use)
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
-              threshold=0.0025, initial_run=True, shuffle=True):
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=512, early_stop_limit=20,  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
+              threshold=0.00025, initial_run=True, shuffle=True):
         """
             Trains the network `n_epochs` times with given `train_data`
             and validates the model using validation_data if it was given
@@ -332,7 +355,7 @@ class CVAE:
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
                 if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
+                    x_mb = train_data[lower:upper, :].X.toarray()
                 else:
                     x_mb = train_data[lower:upper, :].X
                 y_mb = train_labels[lower:upper]
@@ -347,7 +370,7 @@ class CVAE:
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
                     if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
+                        x_mb = valid_data[lower:upper, :].X.toarray()
                     else:
                         x_mb = valid_data[lower:upper, :].X
                     y_mb = valid_labels[lower:upper]

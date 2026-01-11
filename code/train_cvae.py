@@ -1,3 +1,4 @@
+import os
 import scgen
 import scanpy as sc
 import numpy as np
@@ -8,7 +9,7 @@ train = train[~((train.obs["cell_type"] == "CD4T") & (train.obs["condition"] == 
 valid = valid[~((valid.obs["cell_type"] == "CD4T") & (valid.obs["condition"] == "stimulated"))]
 z_dim = 20
 network = scgen.CVAE(x_dimension=train.X.shape[1], z_dimension=z_dim, alpha=0.1, model_path="../models/CVAE/pbmc/all/models/scgen")
-network.train(train, use_validation=True, valid_data=valid, n_epochs=100)
+network.train(train, use_validation=True, valid_data=valid, n_epochs=100, batch_size=512)  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
 labels, _ = scgen.label_encoder(train)
 train = sc.read("../data/train_pbmc.h5ad")
 CD4T = train[train.obs["cell_type"] == "CD4T"]
@@ -18,4 +19,6 @@ predicted_cells = network.predict(unperturbed_data, fake_labels)
 adata = sc.AnnData(predicted_cells, obs={"condition": ["pred"]*len(fake_labels)})
 adata.var_names = CD4T.var_names
 all_adata = CD4T.concatenate(adata)
-all_adata.write("../data/reconstructed/CVAE_CD4T.h5ad")
+output_path = "../data/reconstructed/CVAE_CD4T.h5ad"
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+all_adata.write(output_path)

@@ -79,4 +79,6 @@ x_train, y_train = load_mnist(path="../data/fashion/")
 
 fashion_adata = anndata.AnnData(X=x_train, obs={"condition": y_train, "labels": y_train})
 print(fashion_adata)
-fashion_adata.write_h5ad("../data/fashion.h5ad")
+output_path = "../data/fashion.h5ad"
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+fashion_adata.write_h5ad(output_path)

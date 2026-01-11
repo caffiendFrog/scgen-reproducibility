@@ -1,9 +1,13 @@
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 from random import shuffle
 import matplotlib.pyplot as plt
 from scipy import stats
 import seaborn as sns
+
+from utils import to_dense_array
+
+
 sc.settings.verbosity = 1  # show logging output
 sns.set_style("white")
 
@@ -57,7 +61,7 @@ class data_reader():
         train_s_diet = []
         train_s_groups = []
         for i in train_s:
-            train_s_X.append(i.X.A)
+            train_s_X.append(to_dense_array(i.X))
             train_s_diet.append(i.obs["condition"].tolist())
             train_s_groups.append(i.obs["cell_type"].tolist())
         train_s_X = np.concatenate(train_s_X)
@@ -73,7 +77,7 @@ class data_reader():
         train_t_diet = []
         train_t_groups = []
         for i in train_t:
-            train_t_X.append(i.X.A)
+            train_t_X.append(to_dense_array(i.X))
             train_t_diet.append(i.obs["condition"].tolist())
             train_t_groups.append(i.obs["cell_type"].tolist())
         temp = []

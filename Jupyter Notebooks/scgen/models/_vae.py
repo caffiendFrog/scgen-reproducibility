@@ -2,10 +2,13 @@ import logging
 import os
 
 import numpy
-import tensorflow as tf
 from scipy import sparse
 
 from .util import balancer, extractor, shuffle_data
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 
 log = logging.getLogger(__file__)
 
@@ -45,13 +48,44 @@ class VAEArith:
         self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim], name="latent")
         self.time_step = tf.placeholder(tf.int32)
         self.size = tf.placeholder(tf.int32)
-        self.init_w = tf.contrib.layers.xavier_initializer()
+        self.init_w = tf.glorot_uniform_initializer()
         self._create_network()
         self._loss_function()
-        self.sess = tf.Session()
+        # Configure GPU settings
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True  # Allow GPU memory to grow dynamically
+        config.allow_soft_placement = True  # Allow fallback to CPU if GPU operation not available
+        config.log_device_placement = True  # Log which device operations are placed on (set to False to reduce verbosity)
+        # Optionally set which GPU to use (uncomment and set if you have multiple GPUs):
+        # config.gpu_options.visible_device_list = "0"  # Use GPU 0
+        # Verify GPU availability
+        try:
+            from tensorflow.python.client import device_lib
+            local_device_protos = device_lib.list_local_devices()
+            gpu_devices = [x.name for x in local_device_protos if x.device_type == 'GPU']
+            if gpu_devices:
+                log.info(f"GPU devices available: {gpu_devices}")
+                print(f"GPU devices available: {gpu_devices}")
+            else:
+                log.warning("No GPU devices found. Training will use CPU.")
+                print("WARNING: No GPU devices found. Training will use CPU.")
+        except Exception as e:
+            log.warning(f"Could not check GPU availability: {e}")
+            print(f"WARNING: Could not check GPU availability: {e}")
+        self.sess = tf.Session(config=config)
         self.saver = tf.train.Saver(max_to_keep=1)
         self.init = tf.global_variables_initializer().run(session=self.sess)
 
+    def _work_around(self, scope, feature_dim, h, training):
+        with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+            scale = tf.get_variable("scale", shape=[feature_dim], initializer=tf.ones_initializer())
+            offset = tf.get_variable("offset", shape=[feature_dim], initializer=tf.zeros_initializer())
+            batch_mean, batch_var = tf.nn.moments(h, axes=[0])
+            return tf.nn.batch_normalization(h, batch_mean, batch_var, offset, scale, variance_epsilon=1e-5)
+
+    def _do_dropout(self, x):
+        return tf.nn.dropout(x, rate=self.dropout_rate)
+    
     def _encoder(self):
         """
             Constructs the encoder sub-network of VAE. This function implements the
@@ -68,16 +102,20 @@ class VAEArith:
                     A dense layer consists of log transformed variances of gaussian distributions of latent space dimensions.
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
-            h = tf.layers.dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(self.x)
+            # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = self._work_around("encoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
+            h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(h)
+            # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = self._work_around("encoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            mean = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
-            log_var = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
+            h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            mean = tf.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w)(h)
+            log_var = tf.keras.layers.Dense(units=self.z_dim, kernel_initializer=self.init_w)(h)
             return mean, log_var
 
     def _decoder(self):
@@ -95,15 +133,19 @@ class VAEArith:
 
         """
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            h = tf.layers.dense(inputs=self.z_mean, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(self.z_mean)
+            # h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = self._work_around("decoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
+            h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            h = tf.keras.layers.Dense(units=800, kernel_initializer=self.init_w, use_bias=False)(h)
+            # tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = self._work_around("decoder_bn_800", 800, h, self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
+            # h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
+            h = tf.cond(self.is_training, lambda: self._do_dropout(h), lambda: h)
+            h = tf.keras.layers.Dense(units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)(h)
             h = tf.nn.relu(h)
             return h
 
@@ -174,6 +216,20 @@ class VAEArith:
                 latent: numpy nd-array
                     Returns array containing latent space encoding of 'data'
         """
+        # ADD VALIDATION: Check shape matches model expectations
+        if not isinstance(data, numpy.ndarray):
+            raise TypeError(f"Expected numpy array, got {type(data)}")
+        if data.ndim != 2:
+            raise ValueError(f"Expected 2D array, got {data.ndim}D array with shape {data.shape}")
+        if data.shape[0] == 0:
+            raise ValueError(f"Input data has 0 samples (rows)")
+        if data.shape[1] != self.x_dim:
+            raise ValueError(
+                f"Input data has {data.shape[1]} features, but model expects {self.x_dim} features. "
+                f"Shape: {data.shape}, Expected: [n_cells, {self.x_dim}]. "
+                f"This usually indicates a mismatch between training and inference data preprocessing."
+            )
+        
         latent = self.sess.run(self.z_mean, feed_dict={self.x: data, self.size: data.shape[0], self.is_training: False})
         return latent
 
@@ -248,12 +304,12 @@ class VAEArith:
             ```
         """
         if sparse.issparse(source_adata.X):
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
+            source_average = source_adata.X.toarray().mean(axis=0).reshape((1, source_adata.shape[1]))
         else:
             source_average = source_adata.X.mean(axis=0).reshape((1, source_adata.shape[1]))
 
         if sparse.issparse(dest_adata.X):
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
+            dest_average = dest_adata.X.toarray().mean(axis=0).reshape((1, dest_adata.shape[1]))
         else:
             dest_average = dest_adata.X.mean(axis=0).reshape((1, dest_adata.shape[1]))
         start = self.to_latent(source_average)
@@ -328,14 +384,14 @@ class VAEArith:
             cd_ind = numpy.random.choice(range(ctrl_x.shape[0]), size=ctrl_x.shape[0], replace=False)
             stim_ind = numpy.random.choice(range(stim_x.shape[0]), size=stim_x.shape[0], replace=False)
         if sparse.issparse(ctrl_x.X) and sparse.issparse(stim_x.X):
-            latent_ctrl = self._avg_vector(ctrl_x.X.A[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X.A[stim_ind, :])
+            latent_ctrl = self._avg_vector(ctrl_x.X.toarray()[cd_ind, :])
+            latent_sim = self._avg_vector(stim_x.X.toarray()[stim_ind, :])
         else:
             latent_ctrl = self._avg_vector(ctrl_x.X[cd_ind, :])
             latent_sim = self._avg_vector(stim_x.X[stim_ind, :])
         delta = latent_sim - latent_ctrl
         if sparse.issparse(ctrl_pred.X):
-            latent_cd = self.to_latent(ctrl_pred.X.A)
+            latent_cd = self.to_latent(ctrl_pred.X.toarray())
         else:
             latent_cd = self.to_latent(ctrl_pred.X)
         stim_pred = delta + latent_cd
@@ -381,8 +437,8 @@ class VAEArith:
         """
         self.saver.restore(self.sess, self.model_to_use)
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
-              threshold=0.0025, initial_run=True, shuffle=True, save=True):
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=512, early_stop_limit=20,  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
+              threshold=0.00025, initial_run=True, shuffle=True, save=True):
         """
             Trains the network `n_epochs` times with given `train_data`
             and validates the model using validation_data if it was given
@@ -449,7 +505,7 @@ class VAEArith:
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
                 if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
+                    x_mb = train_data[lower:upper, :].X.toarray()
                 else:
                     x_mb = train_data[lower:upper, :].X
                 if upper - lower > 1:
@@ -462,7 +518,7 @@ class VAEArith:
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
                     if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
+                        x_mb = valid_data[lower:upper, :].X.toarray()
                     else:
                         x_mb = valid_data[lower:upper, :].X
                     current_loss_valid = self.sess.run(self.vae_loss,
@@ -477,7 +533,7 @@ class VAEArith:
                 if patience_cnt > patience:
                     save_path = self.saver.save(self.sess, self.model_to_use)
                     break
-            print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)}")
+            print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)},\t Validation Loss: {valid_loss / (valid_data.shape[0] // batch_size)}")
         if save:
             os.makedirs(self.model_to_use, exist_ok=True)
             save_path = self.saver.save(self.sess, self.model_to_use)

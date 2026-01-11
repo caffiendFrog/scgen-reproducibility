@@ -1,10 +1,12 @@
 import numpy
 import scanpy as sc
+import anndata
 from matplotlib import pyplot
 import pandas as pd
 from scipy import stats, sparse
 from adjustText import adjust_text
 import matplotlib
+from utils import to_dense_array
 font = {'family' : 'Arial',
         # 'weight' : 'bold',
         'size'   : 14}
@@ -57,25 +59,49 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
     import seaborn as sns
     sns.set()
     sns.set(color_codes=True)
-    if sparse.issparse(adata.X):
-        adata.X = adata.X.A
+    # Convert parent to dense first (matching 2018 behavior where parent was dense)
+    # In 2018, modifying a view's .X would modify the parent, making all views see dense data
+    # We replicate this by converting the parent first, then all views will naturally see dense data
+    # CRITICAL: If it's a view, we need to convert to dense BEFORE copying to ensure we copy dense data
+    if adata.is_view:
+        # Convert view's data to dense first, then copy
+        if sparse.issparse(adata.X):
+            # Extract dense data from view
+            dense_data = to_dense_array(adata.X)
+            # Create new AnnData with dense data (not a view)
+            adata = anndata.AnnData(X=dense_data, obs=adata.obs.copy(), var=adata.var.copy())
+        else:
+            adata = adata.copy()
+    elif sparse.issparse(adata.X):
+        # Not a view, just convert in place
+        adata.X = to_dense_array(adata.X)
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
     ctrl = adata[adata.obs[condition_key] == axis_keys["x"]]
+    # Extract dense arrays - since parent is now dense, views should see dense data
+    # But we extract explicitly to ensure we're working with numpy arrays, not AnnData views
+    # CRITICAL: Access .X directly from views of dense parent (matching 2018 behavior)
+    # In 2018, views of dense parent would return dense arrays directly
+    stim_X = numpy.asarray(stim.X)
+    ctrl_X = numpy.asarray(ctrl.X)
     if diff_genes is not None:
         if hasattr(diff_genes, "tolist"):
             diff_genes = diff_genes.tolist()
         adata_diff = adata[:, diff_genes]
+        # Extract dense arrays directly from diff subsets
         stim_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["y"]]
         ctrl_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["x"]]
-        x_diff = numpy.average(ctrl_diff.X, axis=0)
-        y_diff = numpy.average(stim_diff.X, axis=0)
+        # CRITICAL: Access .X directly from views of dense parent (matching 2018 behavior)
+        stim_diff_X = numpy.asarray(stim_diff.X)
+        ctrl_diff_X = numpy.asarray(ctrl_diff.X)
+        x_diff = numpy.average(ctrl_diff_X, axis=0)
+        y_diff = numpy.average(stim_diff_X, axis=0)
         m, b, r_value_diff, p_value_diff, std_err_diff = stats.linregress(x_diff, y_diff)
         print(r_value_diff ** 2)
     if "y1" in axis_keys.keys():
         real_stim = adata[adata.obs[condition_key] == axis_keys["y1"]]
-    x = numpy.average(ctrl.X, axis=0)
-    y = numpy.average(stim.X, axis=0)
+    x = numpy.average(ctrl_X, axis=0)
+    y = numpy.average(stim_X, axis=0)
     m, b, r_value, p_value, std_err = stats.linregress(x, y)
     print(r_value ** 2)
     df = pd.DataFrame({axis_keys["x"]: x, axis_keys["y"]: y})
@@ -114,7 +140,7 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
     ax.text(max(x) - max(x) * x_coeff, max(y) - y_coeff * max(y), r'$\mathrm{R^2_{\mathrm{\mathsf{all\ genes}}}}$= ' + f"{r_value ** 2:.2f}", fontsize=kwargs.get("textsize", fontsize))
     if diff_genes is not None:
         ax.text(max(x) - max(x) * x_coeff, max(y) - (y_coeff+0.15) * max(y), r'$\mathrm{R^2_{\mathrm{\mathsf{top\ 100\ DEGs}}}}$= ' + f"{r_value_diff ** 2:.2f}", fontsize=kwargs.get("textsize", fontsize))
-    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=300)
+    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=100)
     if show:
         pyplot.show()
     pyplot.close()
@@ -163,23 +189,45 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
     import seaborn as sns;
     sns.set()
     sns.set(color_codes=True)
+    # Convert to dense array, avoiding view modification warnings
     if sparse.issparse(adata.X):
-        adata.X = adata.X.A
+        # Check if adata is a view and copy if needed
+        if adata.is_view:
+            adata = adata.copy()
+        adata.X = to_dense_array(adata.X)
     sc.tl.rank_genes_groups(adata, groupby=condition_key, n_genes=100, method="wilcoxon")
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
     ctrl = adata[adata.obs[condition_key] == axis_keys["x"]]
+    # Ensure subsets are using dense arrays (they should be since parent is dense, but verify)
+    if sparse.issparse(stim.X):
+        stim.X = to_dense_array(stim.X)
+    if sparse.issparse(ctrl.X):
+        ctrl.X = to_dense_array(ctrl.X)
     if diff_genes is not None:
         if hasattr(diff_genes, "tolist"):
             diff_genes = diff_genes.tolist()
         adata_diff = adata[:, diff_genes]
+        # Ensure adata_diff itself is dense (column subsetting can create views with sparse data)
+        if sparse.issparse(adata_diff.X):
+            if adata_diff.is_view:
+                adata_diff = adata_diff.copy()
+            adata_diff.X = to_dense_array(adata_diff.X)
         stim_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["y"]]
         ctrl_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["x"]]
+        # Ensure diff subsets are dense
+        if sparse.issparse(stim_diff.X):
+            stim_diff.X = to_dense_array(stim_diff.X)
+        if sparse.issparse(ctrl_diff.X):
+            ctrl_diff.X = to_dense_array(ctrl_diff.X)
         x_diff = numpy.var(ctrl_diff.X, axis=0)
         y_diff = numpy.var(stim_diff.X, axis=0)
         m, b, r_value_diff, p_value_diff, std_err_diff = stats.linregress(x_diff, y_diff)
     if "y1" in axis_keys.keys():
         real_stim = adata[adata.obs[condition_key] == axis_keys["y1"]]
+        # Ensure real_stim is using dense array
+        if sparse.issparse(real_stim.X):
+            real_stim.X = to_dense_array(real_stim.X)
     x = numpy.var(ctrl.X, axis=0)
     y = numpy.var(stim.X, axis=0)
     m, b, r_value, p_value, std_err = stats.linregress(x, y)
@@ -216,7 +264,7 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
     ax.text(max(x) - max(x) * x_coeff, max(y) - y_coeff * max(y), r'$\mathrm{R^2_{\mathrm{\mathsf{all\ genes}}}}$= ' + f"{r_value ** 2:.2f}", fontsize=kwargs.get("textsize", fontsize))
     if diff_genes is not None:
         ax.text(max(x) - max(x) * x_coeff, max(y) - (y_coeff + 0.15) * max(y), r'$\mathrm{R^2_{\mathrm{\mathsf{top\ 100\ DEGs}}}}$= ' + f"{r_value_diff ** 2:.2f}", fontsize=kwargs.get("textsize", fontsize))
-    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=300)
+    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=100)
     if show:
         pyplot.show()
     pyplot.close()
@@ -263,10 +311,19 @@ def binary_classifier(scg_object, adata, delta, condition_key, conditions, path_
         """
     # matplotlib.rcParams.update(matplotlib.rcParamsDefault)
     pyplot.close("all")
+    # Convert to dense array, avoiding view modification warnings
     if sparse.issparse(adata.X):
-        adata.X = adata.X.A
+        # Check if adata is a view and copy if needed
+        if adata.is_view:
+            adata = adata.copy()
+        adata.X = to_dense_array(adata.X)
     cd = adata[adata.obs[condition_key] == conditions["ctrl"], :]
     stim = adata[adata.obs[condition_key] == conditions["stim"], :]
+    # Ensure subsets are using dense arrays (they should be since parent is dense, but verify)
+    if sparse.issparse(cd.X):
+        cd.X = to_dense_array(cd.X)
+    if sparse.issparse(stim.X):
+        stim.X = to_dense_array(stim.X)
     all_latent_cd = scg_object.to_latent(cd.X)
     all_latent_stim = scg_object.to_latent(stim.X)
     dot_cd = numpy.zeros((len(all_latent_cd)))
@@ -286,5 +343,5 @@ def binary_classifier(scg_object, adata, delta, condition_key, conditions, path_
     pyplot.yticks(fontsize=fontsize)
     ax = pyplot.gca()
     ax.grid(False)
-    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=300)
+    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=100)
     pyplot.show()

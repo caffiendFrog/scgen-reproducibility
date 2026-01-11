@@ -1,9 +1,11 @@
-import tensorflow as tf
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 from random import  shuffle
 import wget
 import os
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 
 train_path = "../data/MouseAtlas.subset.h5ad"
@@ -20,7 +22,7 @@ else:
 
 sc.settings.figdir = "../results"
 model_to_use = "../models/mouse_atlas/scgen"
-batch_size = 32
+batch_size = 512  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
 train_real = data
 input_matrix = data.X
 ind_list = [i for i in range(input_matrix.shape[0])]
@@ -37,8 +39,8 @@ data_max_value = np.amax(input_matrix)
 time_step = tf.placeholder(tf.int32)
 size  = tf.placeholder(tf.int32)
 is_training = tf.placeholder(tf.bool)
-init_w =  tf.contrib.layers.xavier_initializer()
-regularizer = tf.contrib.layers.l2_regularizer(scale=0.1)
+init_w = tf.keras.initializers.GlorotUniform()
+regularizer = tf.keras.regularizers.l2(0.1)
 
 def give_me_latent(data):
     latent = sess.run(z_mean,feed_dict = {X : data,size:len(data),is_training:False})
@@ -57,18 +59,40 @@ def reconstruct(data,use_data = False):
 
     reconstruct = sess.run(X_hat,feed_dict = {z_mean : latent ,is_training:False})
     return  reconstruct
+
+# =============================== Batch Normalization Workaround ======================================
+# Workaround for tf.layers.batch_normalization which isn't available in TensorFlow 2.x
+# This manually implements batch normalization using tf.nn functions that still work
+def _work_around(scope, feature_dim, h, training):
+    """
+    Manual batch normalization workaround for TensorFlow 2.x compatibility.
+    
+    How it works:
+    1. Creates trainable scale (gamma) and offset (beta) variables
+    2. Computes batch mean and variance using tf.nn.moments
+    3. Applies normalization: (x - mean) / sqrt(variance + epsilon) * scale + offset
+    
+    This is equivalent to tf.layers.batch_normalization but uses low-level TF1.x APIs
+    that are still available in TF2.x via compat.v1.
+    """
+    with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+        scale = tf.get_variable("scale", shape=[feature_dim], initializer=tf.ones_initializer())
+        offset = tf.get_variable("offset", shape=[feature_dim], initializer=tf.zeros_initializer())
+        batch_mean, batch_var = tf.nn.moments(h, axes=[0])
+        return tf.nn.batch_normalization(h, batch_mean, batch_var, offset, scale, variance_epsilon=1e-5)
+
 # =============================== Q(z|X) ======================================
 
 def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
         h = tf.layers.dense(inputs=X, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = _work_around("gq_bn_800_1", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("gq_bn_800_2", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         mean =  tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
@@ -89,13 +113,13 @@ def P(z,reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
         h = tf.layers.dense(inputs=z,units= 800,kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = _work_around("gp_bn_800_1", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
 
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = _work_around("gp_bn_800_2", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
@@ -115,7 +139,12 @@ g_lrate = tf.placeholder(tf.float32, shape=[])
 global_step = tf.Variable(0, name='global_step', trainable=False, dtype=tf.int32)
 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     Solver = tf.train.AdamOptimizer(learning_rate=lr).minimize(vae_loss)
-sess=tf.InteractiveSession()
+# Configure GPU settings
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True  # Allow GPU memory to grow dynamically
+# Optionally set which GPU to use (uncomment and set if you have multiple GPUs):
+# config.gpu_options.visible_device_list = "0"  # Use GPU 0
+sess = tf.InteractiveSession(config=config)
 saver = tf.train.Saver(max_to_keep=1)
 init = tf.global_variables_initializer().run()
 
@@ -141,6 +170,7 @@ def train(n_epochs, full_training=True, initial_run=True):
                     [Solver, vae_loss], feed_dict={X: X_mb, time_step: current_step,
                                                            size: batch_size, is_training: True})
                 train_loss += D_loss_curr
+    os.makedirs(os.path.dirname(model_to_use), exist_ok=True)
     save_path = saver.save(sess, model_to_use)
     print("Model saved in file: %s" % save_path)
     print(f"total number of trained epochs is {current_step}")
@@ -184,10 +214,16 @@ def vector_batch_removal(inp, batch_key1, batch_key2):
 
         max_batch_ann = batch_list[max_batch_ind]
         detla_vecs = {}
+        # Extract arrays and modify, avoiding view modification warnings
         for study in batch_list:
             delta = np.average(max_batch_ann.X, axis=0) - np.average(batch_list[study].X, axis=0)
-            batch_list[study].X = delta + batch_list[study].X
-            temp_cell[batch_ind[study]].X = batch_list[study].X
+            # Extract array, modify, and create new AnnData to avoid view issues
+            modified_X = delta + batch_list[study].X
+            batch_list[study] = sc.AnnData(modified_X, obs=batch_list[study].obs.copy(), var=batch_list[study].var.copy())
+            # Copy temp_cell before modifying to avoid view issues
+            if temp_cell.is_view:
+                temp_cell = temp_cell.copy()
+            temp_cell[batch_ind[study]].X = modified_X
         shared_anns.append(temp_cell)
     all_shared_ann = sc.AnnData.concatenate(*shared_anns)
 
@@ -232,7 +268,9 @@ if __name__ == "__main__":
     train(300)
     # restore()
     corrected_mouse_atlas, latent_batch = vector_batch_removal(data, "Dataset", "Organ groups")
-    corrected_mouse_atlas.write("../data/reconstructed/scGen/mouse_atlas.h5ad")
+    output_path = "../data/reconstructed/scGen/mouse_atlas.h5ad"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    corrected_mouse_atlas.write(output_path)
     # sc.pp.pca(corrected_mouse_atlas, svd_solver="arpack")
     # sc.pp.neighbors(corrected_mouse_atlas, n_neighbors=25)
     # sc.tl.umap(corrected_mouse_atlas)

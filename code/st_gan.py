@@ -1,9 +1,15 @@
 from random import shuffle
 
+import os
 import numpy as np
-import scanpy.api as sc
-import tensorflow as tf
+import scanpy as sc
+
 from data_reader import data_reader
+from utils import to_dense_array
+
+import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
+
 
 # =============================== downloading training and validation files ====================================
 train_path = "../data/train_pbmc.h5ad"
@@ -41,11 +47,11 @@ train_real_ctrl = train_real_ctrl[ctrl_ind, :]
 train_real_stim = train_real_stim[stim_ind, :]
 # =============================== parameters ====================================
 model_to_use = "../models/STGAN/stgan"
-os.makedirs(model_to_use, exist_ok=True)
+os.makedirs(os.path.dirname(model_to_use), exist_ok=True)
 X_dim = gex_size
 z_dim = 100
 h_dim = 200
-batch_size = 512
+batch_size = 4096  # Safe batch size for ml.g6e.4xlarge (48GB GPU)
 inflate_to_size = 100
 lambda_l2 = .8
 arch = {"noise_input_size": z_dim, "inflate_to_size": inflate_to_size,
@@ -79,20 +85,36 @@ def low_embed_stim(all):
     return pred
 
 
+def _work_around(scope, feature_dim, h, training):
+    with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+        scale = tf.get_variable("scale", shape=[feature_dim], initializer=tf.ones_initializer())
+        offset = tf.get_variable("offset", shape=[feature_dim], initializer=tf.zeros_initializer())
+        batch_mean, batch_var = tf.nn.moments(h, axes=[0])
+        return tf.nn.batch_normalization(h, batch_mean, batch_var, offset, scale, variance_epsilon=1e-5)
+
+
+def _do_dropout(x):
+    return tf.nn.dropout(x, rate=dr_rate)
+
+
 # network
 
 def discriminator_stimulated(tensor, reuse=False, ):
     with tf.variable_scope("discriminator_s", reuse=reuse):
-        h = tf.layers.dense(inputs=tensor, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=700, kernel_initializer=initializer, use_bias=False)(tensor)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("discriminator_sn_700", 700, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
-        h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
+        h = tf.keras.layers.Dense(units=100, kernel_initializer=initializer, use_bias=False, )(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("discriminator_sn_100", 100, h, is_training)
         disc = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(disc, dr_rate, training=is_training)
+        # h = tf.layers.dropout(disc, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=1, kernel_initializer=initializer, use_bias=False)
+        h = tf.keras.layers.Dense(units=1, kernel_initializer=initializer, use_bias=False)(h)
         h = tf.nn.sigmoid(h)
 
         return h, disc
@@ -100,83 +122,108 @@ def discriminator_stimulated(tensor, reuse=False, ):
 
 def discriminator_control(tensor, reuse=False, ):
     with tf.variable_scope("discriminator_b", reuse=reuse):
-        h = tf.layers.dense(inputs=tensor, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=700, kernel_initializer=initializer, use_bias=False)(tensor)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("discriminator_bn_700", 700, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
-
-        h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
+        h = tf.keras.layers.Dense(units=100, kernel_initializer=initializer, use_bias=False, )(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("discriminator_bn_100", 100, h, is_training)
         disc = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(disc, dr_rate, training=is_training)
+        # h = tf.layers.dropout(disc, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=1, kernel_initializer=initializer, use_bias=False)
+        h = tf.keras.layers.Dense(units=1, kernel_initializer=initializer, use_bias=False)(h)
         h = tf.nn.sigmoid(h)
         return h, disc
 
 
 def generator_stim_ctrl(image, reuse=False):
     with tf.variable_scope("generator_sb", reuse=reuse):
-        h = tf.layers.dense(inputs=image, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=700, kernel_initializer=initializer, use_bias=False)(image)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_sbn_700", 700, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=100, kernel_initializer=initializer, use_bias=False)(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_sbn_100", 100, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=50, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=50, kernel_initializer=initializer, use_bias=False, )(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_sbn_50", 50, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=100, kernel_initializer=initializer, use_bias=False)(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_sbn_100", 100, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=700, kernel_initializer=initializer, use_bias=False)(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_sbn_700", 700, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=X_dim, kernel_initializer=initializer, use_bias=False, )(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around(f"generator_sbn_{X_dim}", X_dim, h, is_training)
         h = tf.nn.relu(h)
         return h
 
 
 def generator_ctrl_stim(image, reuse=False, ):
     with tf.variable_scope("generator_bs", reuse=reuse):
-        h = tf.layers.dense(inputs=image, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=700, kernel_initializer=initializer, use_bias=False)(image)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_bsn_700", 700, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=100, kernel_initializer=initializer, use_bias=False)(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_bsn_100", 100, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=50, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=50, kernel_initializer=initializer, use_bias=False, )(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_bsn_50", 50, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=100, kernel_initializer=initializer, use_bias=False)(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_bsn_100", 100, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=700, kernel_initializer=initializer, use_bias=False)(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around("generator_bsn_700", 700, h, is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        # h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = tf.cond(is_training, lambda: _do_dropout(h), lambda: h)
 
-        h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = tf.keras.layers.Dense(units=X_dim, kernel_initializer=initializer, use_bias=False, )(h)
+        # h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = _work_around(f"generator_bsn_{X_dim}", X_dim, h, is_training)
         h = tf.nn.relu(h)
 
         return h
@@ -223,7 +270,12 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     update_G = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(gen_loss,
                                                                             var_list=gen_sb_variables + gen_bs_variables)
 global_step = tf.Variable(0, name='global_step', trainable=False, dtype=tf.int32)
-sess = tf.InteractiveSession()
+# Configure GPU settings
+config = tf.ConfigProto()
+config.gpu_options.allow_growth = True  # Allow GPU memory to grow dynamically
+# Optionally set which GPU to use (uncomment and set if you have multiple GPUs):
+# config.gpu_options.visible_device_list = "0"  # Use GPU 0
+sess = tf.InteractiveSession(config=config)
 saver = tf.train.Saver(max_to_keep=1)
 init = tf.global_variables_initializer().run()
 
@@ -273,13 +325,22 @@ if __name__ == "__main__":
     print("model has been trained/restored!")
     adata_list = dr.extractor(data, "CD4T")
     ctrl_CD4T = adata_list[1]
+    from scipy import sparse
     if sys.argv[1] == "train":
-        predicted_cells = predict(ctrl_CD4T.X.A)
-        all_Data = sc.AnnData(np.concatenate([adata_list[1].X.A, adata_list[2].X.A, predicted_cells]))
-        all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X.A) + ["real_stim"] * len(adata_list[2].X.A) + \
+        # Extract arrays and convert to dense, avoiding view modification warnings
+        ctrl_CD4T_X = to_dense_array(ctrl_CD4T.X)
+        predicted_cells = predict(ctrl_CD4T_X)
+        # Extract arrays for concatenation
+        ctrl_X = to_dense_array(adata_list[1].X)
+        stim_X = to_dense_array(adata_list[2].X)
+        predicted_cells = np.asarray(predicted_cells)
+        all_Data = sc.AnnData(np.concatenate([ctrl_X, stim_X, predicted_cells]))
+        all_Data.obs["condition"] = ["ctrl"] * len(ctrl_X) + ["real_stim"] * len(stim_X) + \
                                     ["pred_stim"] * len(predicted_cells)
         all_Data.var_names = adata_list[3].var_names
-        all_Data.write("../data/reconstructed/CGAN/cgan_cd4t.h5ad")
+        output_path = "../data/reconstructed/CGAN/cgan_cd4t.h5ad"
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        all_Data.write(output_path)
     if sys.argv[1] == "latent":
         low_dim = low_embed_stim(train_real.X)
         dt = sc.AnnData(low_dim)

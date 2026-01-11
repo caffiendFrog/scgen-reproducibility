@@ -108,7 +108,10 @@ def training_data_provider(train_s, train_t):
     train_s_diet = []
     train_s_groups = []
     for i in train_s:
-        train_s_X.append(i.X.A)
+        if sparse.issparse(i.X):
+            train_s_X.append(i.X.toarray())
+        else:
+            train_s_X.append(i.X)
         train_s_diet.append(i.obs["condition"].tolist())
         train_s_groups.append(i.obs["cell_type"].tolist())
     train_s_X = np.concatenate(train_s_X)
@@ -124,7 +127,10 @@ def training_data_provider(train_s, train_t):
     train_t_diet = []
     train_t_groups = []
     for i in train_t:
-        train_t_X.append(i.X.A)
+        if sparse.issparse(i.X):
+            train_t_X.append(i.X.toarray())
+        else:
+            train_t_X.append(i.X)
         train_t_diet.append(i.obs["condition"].tolist())
         train_t_groups.append(i.obs["cell_type"].tolist())
     temp = []
@@ -176,7 +182,7 @@ def balancer(adata, cell_type_key="cell_type", condition_key="condition"):
         temp = adata.copy()[adata.obs[cell_type_key] == cls]
         index = np.random.choice(range(len(temp)), max_number)
         if sparse.issparse(temp.X):
-            temp_x = temp.X.A[index]
+            temp_x = temp.X.toarray()[index]
         else:
             temp_x = temp.X[index]
         all_data_x.append(temp_x)
@@ -223,7 +229,7 @@ def shuffle_data(adata, labels=None):
     ind_list = [i for i in range(adata.shape[0])]
     shuffle(ind_list)
     if sparse.issparse(adata.X):
-        x = adata.X.A[ind_list, :]
+        x = adata.X.toarray()[ind_list, :]
     else:
         x = adata.X[ind_list, :]
     if labels is not None:
@@ -260,7 +266,7 @@ def batch_removal(network, adata):
         ```
      """
     if sparse.issparse(adata.X):
-        latent_all = network.to_latent(adata.X.A)
+        latent_all = network.to_latent(adata.X.toarray())
     else:
         latent_all = network.to_latent(adata.X)
     adata_latent = anndata.AnnData(latent_all)
@@ -290,10 +296,16 @@ def batch_removal(network, adata):
             batch_list[i] = temp
             batch_ind[i] = temp_ind
         max_batch_ann = batch_list[max_batch_ind]
+        # Extract arrays and modify, avoiding view modification warnings
         for study in batch_list:
             delta = np.average(max_batch_ann.X, axis=0) - np.average(batch_list[study].X, axis=0)
-            batch_list[study].X = delta + batch_list[study].X
-            temp_cell[batch_ind[study]].X = batch_list[study].X
+            # Extract array, modify, and create new AnnData to avoid view issues
+            modified_X = delta + batch_list[study].X
+            batch_list[study] = anndata.AnnData(modified_X, obs=batch_list[study].obs.copy(), var=batch_list[study].var.copy())
+            # Copy temp_cell before modifying to avoid view issues
+            if temp_cell.is_view:
+                temp_cell = temp_cell.copy()
+            temp_cell[batch_ind[study]].X = modified_X
         shared_ct.append(temp_cell)
     all_shared_ann = anndata.AnnData.concatenate(*shared_ct, batch_key="concat_batch")
     del all_shared_ann.obs["concat_batch"]
@@ -350,7 +362,7 @@ def visualize_trained_network_results(network, train, cell_type,
     sc.settings.figdir = os.path.abspath(path_to_save)
     if isinstance(network, scgen.VAEArithKeras):
         if sparse.issparse(train.X):
-            latent = network.to_latent(train.X.A)
+            latent = network.to_latent(train.X.toarray())
         else:
             latent = network.to_latent(train.X)
         latent = sc.AnnData(X=latent,
@@ -438,7 +450,7 @@ def visualize_trained_network_results(network, train, cell_type,
 
     elif isinstance(network, scgen.VAEArith):
         if sparse.issparse(train.X):
-            latent = network.to_latent(train.X.A)
+            latent = network.to_latent(train.X.toarray())
         else:
             latent = network.to_latent(train.X)
         latent = sc.AnnData(X=latent,
@@ -529,7 +541,7 @@ def visualize_trained_network_results(network, train, cell_type,
 
 
         if sparse.issparse(train.X):
-            latent = network.to_latent(train.X.A, labels=true_labels)
+            latent = network.to_latent(train.X.toarray(), labels=true_labels)
         else:
             latent = network.to_latent(train.X, labels=true_labels)
         latent = sc.AnnData(X=latent,

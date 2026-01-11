@@ -1,0 +1,44 @@
+name: scgen-repro-env
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    # Core Python and scientific computing
+    - python=3.10
+    - numpy
+    - scipy
+    - matplotlib
+    - pandas
+    - seaborn
+
+    # Single-cell genomics
+    - scanpy
+    - anndata
+
+    # Machine Learning
+    - tensorflow
+    - scikit-learn
+
+    # Deep Learning (Keras)
+    - keras
+
+    # Hyperparameter optimization
+    - pip
+
+    # Jupyter support
+    - ipykernel
+    - jupyter
+    - notebook
+
+    # Utilities
+    - wget
+
+    # R integration (optional, for notebooks using R)
+    - rpy2
+
+    # Pip packages
+    - pip:
+        - adjustText
+        - get-version
+        - hyperas
+        - hyperopt

@@ -29,12 +29,15 @@ figure       | notebook path
 
 To run the notebooks and scripts you need following packages :
 
-tensorflow, scanpy, numpy, matplotlib, scipy, wget.
+tensorflow, scanpy, numpy, matplotlib, scipy, wget, adjustText, get_version
 
 
 ## Getting Started
 
 ```bash
+conda env create -f environment.yml
+conda init
+conda activate scgen-repro-env
 cd code/
 python DataDownloader.py
 python ModelTrainer.py all

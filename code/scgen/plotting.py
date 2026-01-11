@@ -209,6 +209,9 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
         m, b, r_value_diff, p_value_diff, std_err_diff = stats.linregress(x_diff, y_diff)
     if "y1" in axis_keys.keys():
         real_stim = adata[adata.obs[condition_key] == axis_keys["y1"]]
+        # Ensure real_stim is using dense array
+        if sparse.issparse(real_stim.X):
+            real_stim.X = to_dense_array(real_stim.X)
     x = numpy.var(ctrl.X, axis=0)
     y = numpy.var(stim.X, axis=0)
     m, b, r_value, p_value, std_err = stats.linregress(x, y)
@@ -300,6 +303,11 @@ def binary_classifier(scg_object, adata, delta, condition_key, conditions, path_
         adata.X = to_dense_array(adata.X)
     cd = adata[adata.obs[condition_key] == conditions["ctrl"], :]
     stim = adata[adata.obs[condition_key] == conditions["stim"], :]
+    # Ensure subsets are using dense arrays (they should be since parent is dense, but verify)
+    if sparse.issparse(cd.X):
+        cd.X = to_dense_array(cd.X)
+    if sparse.issparse(stim.X):
+        stim.X = to_dense_array(stim.X)
     all_latent_cd = scg_object.to_latent(cd.X)
     all_latent_stim = scg_object.to_latent(stim.X)
     dot_cd = numpy.zeros((len(all_latent_cd)))

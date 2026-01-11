@@ -1,5 +1,6 @@
 import numpy
 import scanpy as sc
+import anndata
 from matplotlib import pyplot
 import pandas as pd
 from scipy import stats, sparse
@@ -61,17 +62,28 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
     # Convert parent to dense first (matching 2018 behavior where parent was dense)
     # In 2018, modifying a view's .X would modify the parent, making all views see dense data
     # We replicate this by converting the parent first, then all views will naturally see dense data
-    if sparse.issparse(adata.X):
-        if adata.is_view:
+    # CRITICAL: If it's a view, we need to convert to dense BEFORE copying to ensure we copy dense data
+    if adata.is_view:
+        # Convert view's data to dense first, then copy
+        if sparse.issparse(adata.X):
+            # Extract dense data from view
+            dense_data = to_dense_array(adata.X)
+            # Create new AnnData with dense data (not a view)
+            adata = anndata.AnnData(X=dense_data, obs=adata.obs.copy(), var=adata.var.copy())
+        else:
             adata = adata.copy()
+    elif sparse.issparse(adata.X):
+        # Not a view, just convert in place
         adata.X = to_dense_array(adata.X)
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
     ctrl = adata[adata.obs[condition_key] == axis_keys["x"]]
     # Extract dense arrays - since parent is now dense, views should see dense data
     # But we extract explicitly to ensure we're working with numpy arrays, not AnnData views
-    stim_X = to_dense_array(stim.X)
-    ctrl_X = to_dense_array(ctrl.X)
+    # CRITICAL: Access .X directly from views of dense parent (matching 2018 behavior)
+    # In 2018, views of dense parent would return dense arrays directly
+    stim_X = numpy.asarray(stim.X)
+    ctrl_X = numpy.asarray(ctrl.X)
     if diff_genes is not None:
         if hasattr(diff_genes, "tolist"):
             diff_genes = diff_genes.tolist()
@@ -79,8 +91,9 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
         # Extract dense arrays directly from diff subsets
         stim_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["y"]]
         ctrl_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["x"]]
-        stim_diff_X = to_dense_array(stim_diff.X)
-        ctrl_diff_X = to_dense_array(ctrl_diff.X)
+        # CRITICAL: Access .X directly from views of dense parent (matching 2018 behavior)
+        stim_diff_X = numpy.asarray(stim_diff.X)
+        ctrl_diff_X = numpy.asarray(ctrl_diff.X)
         x_diff = numpy.average(ctrl_diff_X, axis=0)
         y_diff = numpy.average(stim_diff_X, axis=0)
         m, b, r_value_diff, p_value_diff, std_err_diff = stats.linregress(x_diff, y_diff)

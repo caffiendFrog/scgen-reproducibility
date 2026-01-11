@@ -195,12 +195,22 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
     diff_genes = top_100_genes
     stim = adata[adata.obs[condition_key] == axis_keys["y"]]
     ctrl = adata[adata.obs[condition_key] == axis_keys["x"]]
+    # Ensure subsets are using dense arrays (they should be since parent is dense, but verify)
+    if sparse.issparse(stim.X):
+        stim.X = to_dense_array(stim.X)
+    if sparse.issparse(ctrl.X):
+        ctrl.X = to_dense_array(ctrl.X)
     if diff_genes is not None:
         if hasattr(diff_genes, "tolist"):
             diff_genes = diff_genes.tolist()
         adata_diff = adata[:, diff_genes]
         stim_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["y"]]
         ctrl_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["x"]]
+        # Ensure diff subsets are dense
+        if sparse.issparse(stim_diff.X):
+            stim_diff.X = to_dense_array(stim_diff.X)
+        if sparse.issparse(ctrl_diff.X):
+            ctrl_diff.X = to_dense_array(ctrl_diff.X)
         x_diff = numpy.var(ctrl_diff.X, axis=0)
         y_diff = numpy.var(stim_diff.X, axis=0)
         m, b, r_value_diff, p_value_diff, std_err_diff = stats.linregress(x_diff, y_diff)

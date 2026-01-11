@@ -2,9 +2,8 @@ import logging
 import os
 
 import tensorflow
-from scipy import sparse
-
 from scgen.models.util import shuffle_data, label_encoder
+from scipy import sparse
 
 log = logging.getLogger(__file__)
 

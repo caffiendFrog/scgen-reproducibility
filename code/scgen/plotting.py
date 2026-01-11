@@ -76,6 +76,11 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
         if hasattr(diff_genes, "tolist"):
             diff_genes = diff_genes.tolist()
         adata_diff = adata[:, diff_genes]
+        # Ensure adata_diff itself is dense (column subsetting can create views with sparse data)
+        if sparse.issparse(adata_diff.X):
+            if adata_diff.is_view:
+                adata_diff = adata_diff.copy()
+            adata_diff.X = to_dense_array(adata_diff.X)
         stim_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["y"]]
         ctrl_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["x"]]
         # Ensure diff subsets are dense
@@ -197,6 +202,11 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
         if hasattr(diff_genes, "tolist"):
             diff_genes = diff_genes.tolist()
         adata_diff = adata[:, diff_genes]
+        # Ensure adata_diff itself is dense (column subsetting can create views with sparse data)
+        if sparse.issparse(adata_diff.X):
+            if adata_diff.is_view:
+                adata_diff = adata_diff.copy()
+            adata_diff.X = to_dense_array(adata_diff.X)
         stim_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["y"]]
         ctrl_diff = adata_diff[adata_diff.obs[condition_key] == axis_keys["x"]]
         # Ensure diff subsets are dense

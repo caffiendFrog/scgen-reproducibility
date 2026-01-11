@@ -1,0 +1,28 @@
+name: scgen-repor-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.6,<3.9
+  - numpy>=1.14,<1.20
+  - scipy>=1.0,<1.6
+  - pandas>=0.22,<0.25
+  - matplotlib>=2.2
+  - scikit-learn>=0.19,<0.22
+  - jupyter
+  - ipykernel
+  - pip
+  - pip:
+    # Core dependencies
+    - tensorflow>=1.12,<2.0
+    - scanpy>=1.2,<1.5
+    - anndata>=0.6,<0.7
+    - wget
+    - seaborn
+    - keras>=2.2,<2.4
+    - adjusttext
+    - hyperas
+    - hyperopt
+    # Optional dependencies for specific notebooks
+    - bbknn
+    - rpy2

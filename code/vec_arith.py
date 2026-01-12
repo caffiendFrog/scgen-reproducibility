@@ -1,7 +1,7 @@
 # from hf import *
 
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 import scgen
 from scgen.file_utils import ensure_dir_for_file, get_dense_X, to_dense
 

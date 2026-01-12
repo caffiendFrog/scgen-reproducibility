@@ -1,6 +1,6 @@
 import anndata
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 # from data_reader import data_reader
 # from hf import *
 import scgen

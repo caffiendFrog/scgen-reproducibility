@@ -3,7 +3,7 @@ from scgen.tf_compat import enable_tf1_compatibility, batch_normalization
 enable_tf1_compatibility()
 import tensorflow as tf
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 from random import  shuffle
 import wget
 import os

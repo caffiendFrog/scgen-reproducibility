@@ -1,7 +1,7 @@
 from random import shuffle
 
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 # Enable TensorFlow 1.x compatibility for TensorFlow 2.x
 from scgen.tf_compat import enable_tf1_compatibility, batch_normalization
 enable_tf1_compatibility()

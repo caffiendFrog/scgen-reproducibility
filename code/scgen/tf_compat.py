@@ -76,6 +76,11 @@ def enable_tf1_compatibility():
             # Disable TensorFlow 2.x behaviors (eager execution, etc.)
             tf.compat.v1.disable_v2_behavior()
             
+            # Patch common TF1.x functions to main tf namespace for convenience
+            # This allows code using 'tf.reset_default_graph()' to work without changes
+            if not hasattr(tf, 'reset_default_graph'):
+                tf.reset_default_graph = tf.compat.v1.reset_default_graph
+            
             if log.isEnabledFor(logging.INFO):
                 log.info(
                     f"TensorFlow 1.x compatibility mode enabled (TF version: {tf_version}). "
@@ -174,6 +179,12 @@ def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3,
 # This ensures compatibility is enabled when scgen is imported
 try:
     enable_tf1_compatibility()
+    # Patch tf module to add common TF1.x functions to main namespace
+    # This allows code using 'tf.reset_default_graph()' to work without changes
+    import tensorflow as tf
+    if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
+        if not hasattr(tf, 'reset_default_graph'):
+            tf.reset_default_graph = tf.compat.v1.reset_default_graph
 except (ImportError, RuntimeError) as e:
     # Log but don't fail on import - allows the package to be imported
     # even if TensorFlow isn't installed yet (useful for documentation, etc.)

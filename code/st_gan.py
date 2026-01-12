@@ -3,7 +3,7 @@ from random import shuffle
 import numpy as np
 import scanpy.api as sc
 # Enable TensorFlow 1.x compatibility for TensorFlow 2.x
-from scgen.tf_compat import enable_tf1_compatibility
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization
 enable_tf1_compatibility()
 import tensorflow as tf
 from data_reader import data_reader
@@ -88,11 +88,11 @@ def low_embed_stim(all):
 def discriminator_stimulated(tensor, reuse=False, ):
     with tf.variable_scope("discriminator_s", reuse=reuse):
         h = tf.layers.dense(inputs=tensor, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
         h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         disc = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(disc, dr_rate, training=is_training)
 
@@ -105,12 +105,12 @@ def discriminator_stimulated(tensor, reuse=False, ):
 def discriminator_control(tensor, reuse=False, ):
     with tf.variable_scope("discriminator_b", reuse=reuse):
         h = tf.layers.dense(inputs=tensor, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         disc = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(disc, dr_rate, training=is_training)
 
@@ -122,32 +122,32 @@ def discriminator_control(tensor, reuse=False, ):
 def generator_stim_ctrl(image, reuse=False):
     with tf.variable_scope("generator_sb", reuse=reuse):
         h = tf.layers.dense(inputs=image, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=50, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.relu(h)
         return h
 
@@ -155,32 +155,32 @@ def generator_stim_ctrl(image, reuse=False):
 def generator_ctrl_stim(image, reuse=False, ):
     with tf.variable_scope("generator_bs", reuse=reuse):
         h = tf.layers.dense(inputs=image, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=50, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=700, kernel_initializer=initializer, use_bias=False)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=initializer, use_bias=False, )
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.relu(h)
 
         return h

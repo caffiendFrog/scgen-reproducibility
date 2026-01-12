@@ -1,5 +1,5 @@
 # Enable TensorFlow 1.x compatibility for TensorFlow 2.x
-from scgen.tf_compat import enable_tf1_compatibility
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization
 enable_tf1_compatibility()
 import tensorflow as tf
 import numpy as np
@@ -67,12 +67,12 @@ def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
         h = tf.layers.dense(inputs=X, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         mean =  tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
@@ -93,13 +93,13 @@ def P(z,reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
         h = tf.layers.dense(inputs=z,units= 800,kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
 
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)

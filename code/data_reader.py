@@ -1,5 +1,5 @@
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 from random import shuffle
 import matplotlib.pyplot as plt
 from scipy import stats

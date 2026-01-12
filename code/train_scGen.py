@@ -109,10 +109,9 @@ def reconstruct_whole_data(data_name="pbmc", condition_key="condition"):
                                      obs={condition_key: [f"{cell_type}_ctrl"] * len(cell_type_ctrl_data),
                                           cell_type_key: [cell_type] * len(cell_type_ctrl_data)},
                                      var={"var_names": cell_type_ctrl_data.var_names})
-        if sparse.issparse(cell_type_data.X):
-            real_stim = cell_type_data[cell_type_data.obs[condition_key] == stim_key].X.A
-        else:
-            real_stim = cell_type_data[cell_type_data.obs[condition_key] == stim_key].X
+        # Use get_dense_X to handle views and sparse matrices
+        real_stim_subset = cell_type_data[cell_type_data.obs[condition_key] == stim_key]
+        real_stim = get_dense_X(real_stim_subset)
         real_stim_adata = anndata.AnnData(real_stim,
                                           obs={condition_key: [f"{cell_type}_real_stim"] * len(real_stim),
                                                cell_type_key: [cell_type] * len(real_stim)},

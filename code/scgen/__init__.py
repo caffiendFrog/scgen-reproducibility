@@ -3,7 +3,7 @@
 from .models import *
 from .read_load import load_file
 from . import plotting
-from .file_utils import ensure_dir_for_file, ensure_dir
+from .file_utils import ensure_dir_for_file, ensure_dir, to_dense, get_dense_X
 
 
 __author__ = ', '.join([

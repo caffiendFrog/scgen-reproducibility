@@ -4,7 +4,7 @@ import numpy as np
 import scanpy.api as sc
 import tensorflow as tf
 from data_reader import data_reader
-from scgen.file_utils import ensure_dir_for_file
+from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 # =============================== downloading training and validation files ====================================
 train_path = "../data/train_pbmc.h5ad"
@@ -275,9 +275,12 @@ if __name__ == "__main__":
     adata_list = dr.extractor(data, "CD4T")
     ctrl_CD4T = adata_list[1]
     if sys.argv[1] == "train":
-        predicted_cells = predict(ctrl_CD4T.X.A)
-        all_Data = sc.AnnData(np.concatenate([adata_list[1].X.A, adata_list[2].X.A, predicted_cells]))
-        all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X.A) + ["real_stim"] * len(adata_list[2].X.A) + \
+        # Use get_dense_X to handle views and sparse matrices
+        predicted_cells = predict(get_dense_X(ctrl_CD4T))
+        ctrl_X = get_dense_X(adata_list[1])
+        stim_X = get_dense_X(adata_list[2])
+        all_Data = sc.AnnData(np.concatenate([ctrl_X, stim_X, predicted_cells]))
+        all_Data.obs["condition"] = ["ctrl"] * len(ctrl_X) + ["real_stim"] * len(stim_X) + \
                                     ["pred_stim"] * len(predicted_cells)
         all_Data.var_names = adata_list[3].var_names
         all_Data.write(ensure_dir_for_file("../data/reconstructed/CGAN/cgan_cd4t.h5ad"))

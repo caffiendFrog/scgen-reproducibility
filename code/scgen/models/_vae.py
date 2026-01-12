@@ -6,7 +6,7 @@ import tensorflow as tf
 from scipy import sparse
 
 from .util import balancer, extractor, shuffle_data
-from scgen.file_utils import ensure_dir_for_file
+from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 log = logging.getLogger(__file__)
 
@@ -248,15 +248,9 @@ class VAEArith:
                 interpolation = network.linear_interpolation(souece, destination, n_steps=25)
             ```
         """
-        if sparse.issparse(source_adata.X):
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
-        else:
-            source_average = source_adata.X.mean(axis=0).reshape((1, source_adata.shape[1]))
-
-        if sparse.issparse(dest_adata.X):
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
-        else:
-            dest_average = dest_adata.X.mean(axis=0).reshape((1, dest_adata.shape[1]))
+        # Use get_dense_X to handle views and sparse matrices
+        source_average = get_dense_X(source_adata).mean(axis=0).reshape((1, source_adata.shape[1]))
+        dest_average = get_dense_X(dest_adata).mean(axis=0).reshape((1, dest_adata.shape[1]))
         start = self.to_latent(source_average)
         end = self.to_latent(dest_average)
         vectors = numpy.zeros((n_steps, start.shape[1]))
@@ -328,17 +322,13 @@ class VAEArith:
         else:
             cd_ind = numpy.random.choice(range(ctrl_x.shape[0]), size=ctrl_x.shape[0], replace=False)
             stim_ind = numpy.random.choice(range(stim_x.shape[0]), size=stim_x.shape[0], replace=False)
-        if sparse.issparse(ctrl_x.X) and sparse.issparse(stim_x.X):
-            latent_ctrl = self._avg_vector(ctrl_x.X.A[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X.A[stim_ind, :])
-        else:
-            latent_ctrl = self._avg_vector(ctrl_x.X[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X[stim_ind, :])
+        # Use get_dense_X to handle views and sparse matrices
+        ctrl_x_dense = get_dense_X(ctrl_x)
+        stim_x_dense = get_dense_X(stim_x)
+        latent_ctrl = self._avg_vector(ctrl_x_dense[cd_ind, :])
+        latent_sim = self._avg_vector(stim_x_dense[stim_ind, :])
         delta = latent_sim - latent_ctrl
-        if sparse.issparse(ctrl_pred.X):
-            latent_cd = self.to_latent(ctrl_pred.X.A)
-        else:
-            latent_cd = self.to_latent(ctrl_pred.X)
+        latent_cd = self.to_latent(get_dense_X(ctrl_pred))
         stim_pred = delta + latent_cd
         predicted_cells = self.reconstruct(stim_pred, use_data=True)
         return predicted_cells, delta
@@ -449,10 +439,8 @@ class VAEArith:
             train_loss = 0.0
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
-                if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
-                else:
-                    x_mb = train_data[lower:upper, :].X
+                # Use get_dense_X to handle views and sparse matrices
+                x_mb = get_dense_X(train_data[lower:upper, :])
                 if upper - lower > 1:
                     _, current_loss_train = self.sess.run([self.solver, self.vae_loss],
                                                           feed_dict={self.x: x_mb, self.time_step: current_step,
@@ -462,10 +450,8 @@ class VAEArith:
                 valid_loss = 0
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
-                    if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
-                    else:
-                        x_mb = valid_data[lower:upper, :].X
+                    # Use get_dense_X to handle views and sparse matrices
+                    x_mb = get_dense_X(valid_data[lower:upper, :])
                     current_loss_valid = self.sess.run(self.vae_loss,
                                                        feed_dict={self.x: x_mb, self.time_step: current_step,
                                                                   self.size: len(x_mb), self.is_training: False})

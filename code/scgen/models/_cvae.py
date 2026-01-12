@@ -4,6 +4,7 @@ import os
 import tensorflow
 from scgen.models.util import shuffle_data, label_encoder
 from scipy import sparse
+from scgen.constants import DEFAULT_BATCH_SIZE
 from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 log = logging.getLogger(__file__)
@@ -266,7 +267,7 @@ class CVAE:
         """
         self.saver.restore(self.sess, self.model_to_use)
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=DEFAULT_BATCH_SIZE, early_stop_limit=20,
               threshold=0.0025, initial_run=True, shuffle=True):
         """
             Trains the network `n_epochs` times with given `train_data`

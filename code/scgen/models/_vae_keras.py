@@ -12,6 +12,7 @@ from scipy import sparse
 
 import scgen
 from scgen.file_utils import ensure_dir
+from scgen.constants import DEFAULT_BATCH_SIZE
 from .util import balancer, extractor, shuffle_data
 from scgen.file_utils import get_dense_X
 
@@ -417,7 +418,7 @@ class VAEArithKeras:
     def train(self, train_data, vis_data,
               validation_data=None,
               n_epochs=25,
-              batch_size=32,
+              batch_size=DEFAULT_BATCH_SIZE,
               early_stop_limit=20,
               threshold=0.0025,
               initial_run=True,

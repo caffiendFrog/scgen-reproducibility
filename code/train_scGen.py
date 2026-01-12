@@ -2,13 +2,14 @@ import anndata
 import scanpy as sc
 import scgen
 from scipy import sparse
+from scgen.constants import DEFAULT_BATCH_SIZE
 
 
 def test_train_whole_data_one_celltype_out(data_name="pbmc",
                                            z_dim=50,
                                            alpha=0.1,
                                            n_epochs=1000,
-                                           batch_size=32,
+                                           batch_size=DEFAULT_BATCH_SIZE,
                                            dropout_rate=0.25,
                                            learning_rate=0.001,
                                            condition_key="condition",
@@ -130,7 +131,7 @@ def test_train_whole_data_some_celltypes_out(data_name="pbmc",
                                              z_dim=100,
                                              alpha=0.00005,
                                              n_epochs=300,
-                                             batch_size=32,
+                                             batch_size=DEFAULT_BATCH_SIZE,
                                              dropout_rate=0.2,
                                              learning_rate=0.001,
                                              condition_key="condition",
@@ -165,7 +166,7 @@ def train_cross_study(data_name="study",
                       z_dim=100,
                       alpha=0.00005,
                       n_epochs=300,
-                      batch_size=32,
+                      batch_size=DEFAULT_BATCH_SIZE,
                       dropout_rate=0.2,
                       learning_rate=0.001):
     train = sc.read("../data/train_study.h5ad")
@@ -185,15 +186,15 @@ def train_cross_study(data_name="study",
 
 
 if __name__ == '__main__':
-    test_train_whole_data_one_celltype_out("pbmc", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    test_train_whole_data_one_celltype_out("pbmc", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
                                            dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("hpoly", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    test_train_whole_data_one_celltype_out("hpoly", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
                                            dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("salmonella", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    test_train_whole_data_one_celltype_out("salmonella", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
                                            dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
                                            dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="rat")
-    train_cross_study("study", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=32,
+    train_cross_study("study", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
                       dropout_rate=0.2, learning_rate=0.001)
     reconstruct_whole_data("pbmc")
     reconstruct_whole_data("hpoly")
@@ -206,7 +207,7 @@ if __name__ == '__main__':
                                              z_dim=100,
                                              alpha=0.00005,
                                              n_epochs=300,
-                                             batch_size=32,
+                                             batch_size=DEFAULT_BATCH_SIZE,
                                              dropout_rate=0.2,
                                              learning_rate=0.001,
                                              condition_key="condition",
@@ -218,7 +219,7 @@ if __name__ == '__main__':
                                              z_dim=100,
                                              alpha=0.00005,
                                              n_epochs=300,
-                                             batch_size=32,
+                                             batch_size=DEFAULT_BATCH_SIZE,
                                              dropout_rate=0.2,
                                              learning_rate=0.001,
                                              condition_key="condition",
@@ -230,7 +231,7 @@ if __name__ == '__main__':
                                              z_dim=100,
                                              alpha=0.00005,
                                              n_epochs=300,
-                                             batch_size=32,
+                                             batch_size=DEFAULT_BATCH_SIZE,
                                              dropout_rate=0.2,
                                              learning_rate=0.001,
                                              condition_key="condition",

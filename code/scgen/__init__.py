@@ -8,6 +8,7 @@ from .models import *
 from .read_load import load_file
 from . import plotting
 from .file_utils import ensure_dir_for_file, ensure_dir, to_dense, get_dense_X
+from .constants import DEFAULT_BATCH_SIZE, STGAN_BATCH_SIZE
 
 
 __author__ = ', '.join([

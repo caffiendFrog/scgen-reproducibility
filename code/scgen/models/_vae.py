@@ -6,6 +6,7 @@ import tensorflow as tf
 from scipy import sparse
 
 from scgen.tf_compat import batch_normalization
+from scgen.constants import DEFAULT_BATCH_SIZE
 from .util import balancer, extractor, shuffle_data
 from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
@@ -373,7 +374,7 @@ class VAEArith:
         """
         self.saver.restore(self.sess, self.model_to_use)
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=DEFAULT_BATCH_SIZE, early_stop_limit=20,
               threshold=0.0025, initial_run=True, shuffle=True, save=True):
         """
             Trains the network `n_epochs` times with given `train_data`

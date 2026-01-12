@@ -8,6 +8,7 @@ enable_tf1_compatibility()
 import tensorflow as tf
 from data_reader import data_reader
 from scgen.file_utils import ensure_dir_for_file, get_dense_X
+from scgen.constants import STGAN_BATCH_SIZE
 
 # =============================== downloading training and validation files ====================================
 train_path = "../data/train_pbmc.h5ad"
@@ -49,7 +50,7 @@ os.makedirs(model_to_use, exist_ok=True)
 X_dim = gex_size
 z_dim = 100
 h_dim = 200
-batch_size = 512
+batch_size = STGAN_BATCH_SIZE
 inflate_to_size = 100
 lambda_l2 = .8
 arch = {"noise_input_size": z_dim, "inflate_to_size": inflate_to_size,

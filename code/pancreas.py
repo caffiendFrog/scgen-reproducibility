@@ -11,6 +11,7 @@ enable_tf1_compatibility()
 import tensorflow as tf
 import wget
 from scgen.file_utils import ensure_dir_for_file
+from scgen.constants import DEFAULT_BATCH_SIZE
 
 train_path = "../data/pancreas.h5ad"
 
@@ -24,7 +25,7 @@ else:
 path_to_save = "../results/Figures/Figure 6/"
 sc.settings.figdir = path_to_save
 model_to_use = "../models/scGen/pancreas/scgen"
-batch_size = 32
+batch_size = DEFAULT_BATCH_SIZE
 train_real = data
 input_matrix = data.X
 ind_list = [i for i in range(input_matrix.shape[0])]

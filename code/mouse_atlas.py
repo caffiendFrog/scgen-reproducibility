@@ -8,6 +8,7 @@ from random import  shuffle
 import wget
 import os
 from scgen.file_utils import ensure_dir_for_file
+from scgen.constants import DEFAULT_BATCH_SIZE
 
 
 train_path = "../data/MouseAtlas.subset.h5ad"
@@ -24,7 +25,7 @@ else:
 
 sc.settings.figdir = "../results"
 model_to_use = "../models/mouse_atlas/scgen"
-batch_size = 32
+batch_size = DEFAULT_BATCH_SIZE
 train_real = data
 input_matrix = data.X
 ind_list = [i for i in range(input_matrix.shape[0])]

@@ -1,5 +1,9 @@
 """ScGen - Predicting single cell perturbations"""
 
+# Enable TensorFlow 1.x compatibility mode for TensorFlow 2.x
+# This must be imported before any TensorFlow operations
+from . import tf_compat  # Auto-configures TF compatibility
+
 from .models import *
 from .read_load import load_file
 from . import plotting

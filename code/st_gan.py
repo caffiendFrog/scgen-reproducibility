@@ -2,6 +2,9 @@ from random import shuffle
 
 import numpy as np
 import scanpy.api as sc
+# Enable TensorFlow 1.x compatibility for TensorFlow 2.x
+from scgen.tf_compat import enable_tf1_compatibility
+enable_tf1_compatibility()
 import tensorflow as tf
 from data_reader import data_reader
 from scgen.file_utils import ensure_dir_for_file, get_dense_X

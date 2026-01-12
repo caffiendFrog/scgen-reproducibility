@@ -3,10 +3,15 @@ from random import shuffle
 
 import matplotlib
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 import sklearn as sk
+# Enable TensorFlow 1.x compatibility for TensorFlow 2.x
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization
+enable_tf1_compatibility()
 import tensorflow as tf
 import wget
+from scgen.file_utils import ensure_dir_for_file
+from scgen.constants import DEFAULT_BATCH_SIZE
 
 train_path = "../data/pancreas.h5ad"
 
@@ -20,7 +25,7 @@ else:
 path_to_save = "../results/Figures/Figure 6/"
 sc.settings.figdir = path_to_save
 model_to_use = "../models/scGen/pancreas/scgen"
-batch_size = 32
+batch_size = DEFAULT_BATCH_SIZE
 train_real = data
 input_matrix = data.X
 ind_list = [i for i in range(input_matrix.shape[0])]
@@ -68,12 +73,12 @@ def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
         h = tf.layers.dense(inputs=X, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
         mean = tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
@@ -98,13 +103,13 @@ def P(z, reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
         h = tf.layers.dense(inputs=z, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
 
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h, dr_rate, training=is_training)
         h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
@@ -229,7 +234,7 @@ if __name__ == "__main__":
     all_data.obs["celltype"] = "others"
     for cell_type in top_cell_types:
         all_data.obs.loc[all_data.obs["cell_type"] == cell_type, "celltype"] = cell_type
-    all_data.write("../data/reconstructed/scGen/pancreas.h5ad")
+    all_data.write(ensure_dir_for_file("../data/reconstructed/scGen/pancreas.h5ad"))
     print("scGen batch corrected pancreas has been saved in ../data/reconstructed/scGen/pancreas.h5ad")
     # sc.pp.neighbors(all_data)
     # sc.tl.umap(all_data)

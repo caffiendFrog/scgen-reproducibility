@@ -1,9 +1,14 @@
+# Enable TensorFlow 1.x compatibility for TensorFlow 2.x
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization
+enable_tf1_compatibility()
 import tensorflow as tf
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 from random import  shuffle
 import wget
 import os
+from scgen.file_utils import ensure_dir_for_file
+from scgen.constants import DEFAULT_BATCH_SIZE
 
 
 train_path = "../data/MouseAtlas.subset.h5ad"
@@ -20,7 +25,7 @@ else:
 
 sc.settings.figdir = "../results"
 model_to_use = "../models/mouse_atlas/scgen"
-batch_size = 32
+batch_size = DEFAULT_BATCH_SIZE
 train_real = data
 input_matrix = data.X
 ind_list = [i for i in range(input_matrix.shape[0])]
@@ -63,12 +68,12 @@ def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
         h = tf.layers.dense(inputs=X, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         mean =  tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
@@ -89,13 +94,13 @@ def P(z,reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
         h = tf.layers.dense(inputs=z,units= 800,kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
 
         h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = tf.layers.dropout(h,dr_rate, training= is_training)
         h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
@@ -232,7 +237,7 @@ if __name__ == "__main__":
     train(300)
     # restore()
     corrected_mouse_atlas, latent_batch = vector_batch_removal(data, "Dataset", "Organ groups")
-    corrected_mouse_atlas.write("../data/reconstructed/scGen/mouse_atlas.h5ad")
+    corrected_mouse_atlas.write(ensure_dir_for_file("../data/reconstructed/scGen/mouse_atlas.h5ad"))
     # sc.pp.pca(corrected_mouse_atlas, svd_solver="arpack")
     # sc.pp.neighbors(corrected_mouse_atlas, n_neighbors=25)
     # sc.tl.umap(corrected_mouse_atlas)

@@ -9,6 +9,7 @@ from scipy import sparse
 from sklearn import preprocessing
 
 import scgen
+from scgen.file_utils import get_dense_X
 
 
 def data_remover(adata, remain_list, remove_list, cell_type_key, condition_key):
@@ -108,7 +109,7 @@ def training_data_provider(train_s, train_t):
     train_s_diet = []
     train_s_groups = []
     for i in train_s:
-        train_s_X.append(i.X.A)
+        train_s_X.append(get_dense_X(i))
         train_s_diet.append(i.obs["condition"].tolist())
         train_s_groups.append(i.obs["cell_type"].tolist())
     train_s_X = np.concatenate(train_s_X)
@@ -124,7 +125,7 @@ def training_data_provider(train_s, train_t):
     train_t_diet = []
     train_t_groups = []
     for i in train_t:
-        train_t_X.append(i.X.A)
+        train_t_X.append(get_dense_X(i))
         train_t_diet.append(i.obs["condition"].tolist())
         train_t_groups.append(i.obs["cell_type"].tolist())
     temp = []
@@ -175,10 +176,8 @@ def balancer(adata, cell_type_key="cell_type", condition_key="condition"):
     for cls in class_names:
         temp = adata.copy()[adata.obs[cell_type_key] == cls]
         index = np.random.choice(range(len(temp)), max_number)
-        if sparse.issparse(temp.X):
-            temp_x = temp.X.A[index]
-        else:
-            temp_x = temp.X[index]
+        # Use get_dense_X to handle views and sparse matrices
+        temp_x = get_dense_X(temp)[index]
         all_data_x.append(temp_x)
         temp_ct = np.repeat(cls, max_number)
         all_data_label.append(temp_ct)
@@ -222,10 +221,8 @@ def shuffle_data(adata, labels=None):
     """
     ind_list = [i for i in range(adata.shape[0])]
     shuffle(ind_list)
-    if sparse.issparse(adata.X):
-        x = adata.X.A[ind_list, :]
-    else:
-        x = adata.X[ind_list, :]
+    # Use get_dense_X to handle views and sparse matrices
+    x = get_dense_X(adata)[ind_list, :]
     if labels is not None:
         labels = labels[ind_list]
         adata = anndata.AnnData(x, obs={"labels": list(labels)})
@@ -259,10 +256,8 @@ def batch_removal(network, adata):
         corrected_adata = scgen.batch_removal(network, train)
         ```
      """
-    if sparse.issparse(adata.X):
-        latent_all = network.to_latent(adata.X.A)
-    else:
-        latent_all = network.to_latent(adata.X)
+    # Use get_dense_X to handle views and sparse matrices
+    latent_all = network.to_latent(get_dense_X(adata))
     adata_latent = anndata.AnnData(latent_all)
     adata_latent.obs["cell_type"] = adata.obs["cell_type"].tolist()
     adata_latent.obs["batch"] = adata.obs["batch"].tolist()
@@ -349,10 +344,8 @@ def visualize_trained_network_results(network, train, cell_type,
     os.makedirs(path_to_save, exist_ok=True)
     sc.settings.figdir = os.path.abspath(path_to_save)
     if isinstance(network, scgen.VAEArithKeras):
-        if sparse.issparse(train.X):
-            latent = network.to_latent(train.X.A)
-        else:
-            latent = network.to_latent(train.X)
+        # Use get_dense_X to handle views and sparse matrices
+        latent = network.to_latent(get_dense_X(train))
         latent = sc.AnnData(X=latent,
                             obs={condition_key: train.obs[condition_key].tolist(),
                                  cell_type_key: train.obs[cell_type_key].tolist()})
@@ -437,10 +430,8 @@ def visualize_trained_network_results(network, train, cell_type,
         plt.close("all")
 
     elif isinstance(network, scgen.VAEArith):
-        if sparse.issparse(train.X):
-            latent = network.to_latent(train.X.A)
-        else:
-            latent = network.to_latent(train.X)
+        # Use get_dense_X to handle views and sparse matrices
+        latent = network.to_latent(get_dense_X(train))
         latent = sc.AnnData(X=latent,
                             obs={condition_key: train.obs[condition_key].tolist(),
                                  cell_type_key: train.obs[cell_type_key].tolist()})
@@ -527,11 +518,8 @@ def visualize_trained_network_results(network, train, cell_type,
     elif isinstance(network, scgen.CVAE):
         true_labels, _ = scgen.label_encoder(train)
 
-
-        if sparse.issparse(train.X):
-            latent = network.to_latent(train.X.A, labels=true_labels)
-        else:
-            latent = network.to_latent(train.X, labels=true_labels)
+        # Use get_dense_X to handle views and sparse matrices
+        latent = network.to_latent(get_dense_X(train), labels=true_labels)
         latent = sc.AnnData(X=latent,
                             obs={condition_key: train.obs[condition_key].tolist(),
                                  cell_type_key: train.obs[cell_type_key].tolist()})

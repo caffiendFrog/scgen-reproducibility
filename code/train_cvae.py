@@ -1,6 +1,7 @@
 import scgen
 import scanpy as sc
 import numpy as np
+from scgen.file_utils import ensure_dir_for_file
 
 train = sc.read("../data/train_pbmc.h5ad")
 valid = sc.read("../data/valid_pbmc.h5ad")
@@ -18,4 +19,4 @@ predicted_cells = network.predict(unperturbed_data, fake_labels)
 adata = sc.AnnData(predicted_cells, obs={"condition": ["pred"]*len(fake_labels)})
 adata.var_names = CD4T.var_names
 all_adata = CD4T.concatenate(adata)
-all_adata.write("../data/reconstructed/CVAE_CD4T.h5ad")
+all_adata.write(ensure_dir_for_file("../data/reconstructed/CVAE_CD4T.h5ad"))

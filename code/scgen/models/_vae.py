@@ -5,7 +5,10 @@ import numpy
 import tensorflow as tf
 from scipy import sparse
 
+from scgen.tf_compat import batch_normalization
+from scgen.constants import DEFAULT_BATCH_SIZE
 from .util import balancer, extractor, shuffle_data
+from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 log = logging.getLogger(__file__)
 
@@ -69,11 +72,11 @@ class VAEArith:
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
             h = tf.layers.dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
             h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
             h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
             h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
             mean = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
@@ -96,11 +99,11 @@ class VAEArith:
         """
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
             h = tf.layers.dense(inputs=self.z_mean, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
             h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
             h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
             h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
             h = tf.layers.dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
@@ -247,15 +250,9 @@ class VAEArith:
                 interpolation = network.linear_interpolation(souece, destination, n_steps=25)
             ```
         """
-        if sparse.issparse(source_adata.X):
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
-        else:
-            source_average = source_adata.X.mean(axis=0).reshape((1, source_adata.shape[1]))
-
-        if sparse.issparse(dest_adata.X):
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
-        else:
-            dest_average = dest_adata.X.mean(axis=0).reshape((1, dest_adata.shape[1]))
+        # Use get_dense_X to handle views and sparse matrices
+        source_average = get_dense_X(source_adata).mean(axis=0).reshape((1, source_adata.shape[1]))
+        dest_average = get_dense_X(dest_adata).mean(axis=0).reshape((1, dest_adata.shape[1]))
         start = self.to_latent(source_average)
         end = self.to_latent(dest_average)
         vectors = numpy.zeros((n_steps, start.shape[1]))
@@ -327,17 +324,13 @@ class VAEArith:
         else:
             cd_ind = numpy.random.choice(range(ctrl_x.shape[0]), size=ctrl_x.shape[0], replace=False)
             stim_ind = numpy.random.choice(range(stim_x.shape[0]), size=stim_x.shape[0], replace=False)
-        if sparse.issparse(ctrl_x.X) and sparse.issparse(stim_x.X):
-            latent_ctrl = self._avg_vector(ctrl_x.X.A[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X.A[stim_ind, :])
-        else:
-            latent_ctrl = self._avg_vector(ctrl_x.X[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X[stim_ind, :])
+        # Use get_dense_X to handle views and sparse matrices
+        ctrl_x_dense = get_dense_X(ctrl_x)
+        stim_x_dense = get_dense_X(stim_x)
+        latent_ctrl = self._avg_vector(ctrl_x_dense[cd_ind, :])
+        latent_sim = self._avg_vector(stim_x_dense[stim_ind, :])
         delta = latent_sim - latent_ctrl
-        if sparse.issparse(ctrl_pred.X):
-            latent_cd = self.to_latent(ctrl_pred.X.A)
-        else:
-            latent_cd = self.to_latent(ctrl_pred.X)
+        latent_cd = self.to_latent(get_dense_X(ctrl_pred))
         stim_pred = delta + latent_cd
         predicted_cells = self.reconstruct(stim_pred, use_data=True)
         return predicted_cells, delta
@@ -381,8 +374,8 @@ class VAEArith:
         """
         self.saver.restore(self.sess, self.model_to_use)
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
-              threshold=0.00025, initial_run=True, shuffle=True, save=True):
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=DEFAULT_BATCH_SIZE, early_stop_limit=20,
+              threshold=0.0025, initial_run=True, shuffle=True, save=True):
         """
             Trains the network `n_epochs` times with given `train_data`
             and validates the model using validation_data if it was given
@@ -448,10 +441,8 @@ class VAEArith:
             train_loss = 0.0
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
-                if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
-                else:
-                    x_mb = train_data[lower:upper, :].X
+                # Use get_dense_X to handle views and sparse matrices
+                x_mb = get_dense_X(train_data[lower:upper, :])
                 if upper - lower > 1:
                     _, current_loss_train = self.sess.run([self.solver, self.vae_loss],
                                                           feed_dict={self.x: x_mb, self.time_step: current_step,
@@ -461,10 +452,8 @@ class VAEArith:
                 valid_loss = 0
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
-                    if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
-                    else:
-                        x_mb = valid_data[lower:upper, :].X
+                    # Use get_dense_X to handle views and sparse matrices
+                    x_mb = get_dense_X(valid_data[lower:upper, :])
                     current_loss_valid = self.sess.run(self.vae_loss,
                                                        feed_dict={self.x: x_mb, self.time_step: current_step,
                                                                   self.size: len(x_mb), self.is_training: False})
@@ -475,10 +464,13 @@ class VAEArith:
                 else:
                     patience_cnt += 1
                 if patience_cnt > patience:
+                    ensure_dir_for_file(self.model_to_use)
                     save_path = self.saver.save(self.sess, self.model_to_use)
                     break
-            print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)},\t Validation Loss: {valid_loss / (valid_data.shape[0] // batch_size)}")
+                print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)},\t Validation Loss: {valid_loss / (valid_data.shape[0] // batch_size)}")
+            else:
+                print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)}")
         if save:
-            os.makedirs(self.model_to_use, exist_ok=True)
+            ensure_dir_for_file(self.model_to_use)
             save_path = self.saver.save(self.sess, self.model_to_use)
             log.info(f"Model saved in file: {save_path}. Training finished")

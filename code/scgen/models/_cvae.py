@@ -4,6 +4,8 @@ import os
 import tensorflow
 from scgen.models.util import shuffle_data, label_encoder
 from scipy import sparse
+from scgen.constants import DEFAULT_BATCH_SIZE
+from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 log = logging.getLogger(__file__)
 
@@ -239,10 +241,8 @@ class CVAE:
             prediction = network.predict('CD4T', obs_key={"cell_type": ["CD8T", "NK"]})
             ```
         """
-        if sparse.issparse(data.X):
-            stim_pred = self._reconstruct(data.X.A, labels)
-        else:
-            stim_pred = self._reconstruct(data.X, labels)
+        # Use get_dense_X to handle views and sparse matrices
+        stim_pred = self._reconstruct(get_dense_X(data), labels)
         return stim_pred
 
     def restore_model(self):
@@ -267,8 +267,8 @@ class CVAE:
         """
         self.saver.restore(self.sess, self.model_to_use)
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
-              threshold=0.00025, initial_run=True, shuffle=True):
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=DEFAULT_BATCH_SIZE, early_stop_limit=20,
+              threshold=0.0025, initial_run=True, shuffle=True):
         """
             Trains the network `n_epochs` times with given `train_data`
             and validates the model using validation_data if it was given
@@ -330,10 +330,8 @@ class CVAE:
             train_loss = 0
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
-                if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
-                else:
-                    x_mb = train_data[lower:upper, :].X
+                # Use get_dense_X to handle views and sparse matrices
+                x_mb = get_dense_X(train_data[lower:upper, :])
                 y_mb = train_labels[lower:upper]
                 _, current_loss_train = self.sess.run([self.solver, self.vae_loss],
                                                       feed_dict={self.x: x_mb, self.y: y_mb,
@@ -345,10 +343,8 @@ class CVAE:
                 valid_loss = 0
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
-                    if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
-                    else:
-                        x_mb = valid_data[lower:upper, :].X
+                    # Use get_dense_X to handle views and sparse matrices
+                    x_mb = get_dense_X(valid_data[lower:upper, :])
                     y_mb = valid_labels[lower:upper]
                     current_loss_valid = self.sess.run(self.vae_loss, feed_dict={self.x: x_mb, self.y: y_mb,
                                                                                  self.time_step: current_step,
@@ -361,8 +357,9 @@ class CVAE:
                 else:
                     patience_cnt += 1
                 if patience_cnt > patience:
+                    ensure_dir_for_file(self.model_to_use)
                     save_path = self.saver.save(self.sess, self.model_to_use)
                     break
-        os.makedirs(self.model_to_use, exist_ok=True)
+        ensure_dir_for_file(self.model_to_use)
         save_path = self.saver.save(self.sess, self.model_to_use)
         print(f"Model saved in file: {save_path}. Training finished")

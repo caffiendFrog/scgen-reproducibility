@@ -1,8 +1,9 @@
 # from hf import *
 
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 import scgen
+from scgen.file_utils import ensure_dir_for_file, get_dense_X, to_dense
 
 
 # =============================== downloading training and validation files ====================================
@@ -35,16 +36,13 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     if p_type == "unbiased":
         train_real_stimulated = scgen.util.balancer(train_real_stimulated)
 
-    import scipy.sparse as sparse
-    if sparse.issparse(train_real_cd.X):
-        train_real_cd = train_real_cd.X.A
-        train_real_stimulated = train_real_stimulated.X.A
-    else:
-        train_real_cd = train_real_cd.X
-        train_real_stimulated = train_real_stimulated.X
-    if sparse.issparse(ctrl_cell.X):
-        ctrl_cell.X = ctrl_cell.X.A
-        stim_cell.X = stim_cell.X.A
+    # Extract dense X arrays for training data (only arrays needed for predict function)
+    train_real_cd = get_dense_X(train_real_cd)
+    train_real_stimulated = get_dense_X(train_real_stimulated)
+    # Convert to dense AnnData objects (need full objects for .X, .shape, .var_names access)
+    # to_dense() handles views (boolean indexing creates views) and sparse matrices
+    ctrl_cell = to_dense(ctrl_cell)
+    stim_cell = to_dense(stim_cell)
     predicted_cells = predict(train_real_cd, train_real_stimulated, ctrl_cell.X)
 
     print("Prediction has been finished")
@@ -53,9 +51,9 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = ctrl_cell.var_names
     if p_type == "unbiased":
-        sc.write(f"../data/reconstructed/VecArithm/VecArithm_CD4T.h5ad", all_Data)
+        sc.write(ensure_dir_for_file(f"../data/reconstructed/VecArithm/VecArithm_CD4T.h5ad"), all_Data)
     else:
-        sc.write(f"../data/reconstructed/VecArithm/VecArithm_CD4T_biased.h5ad", all_Data)
+        sc.write(ensure_dir_for_file(f"../data/reconstructed/VecArithm/VecArithm_CD4T_biased.h5ad"), all_Data)
 
 
 def predict(cd_x, hfd_x, cd_y, p_type="unbiased"):

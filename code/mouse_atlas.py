@@ -4,6 +4,7 @@ import scanpy.api as sc
 from random import  shuffle
 import wget
 import os
+from scgen.file_utils import ensure_dir_for_file
 
 
 train_path = "../data/MouseAtlas.subset.h5ad"
@@ -232,7 +233,7 @@ if __name__ == "__main__":
     train(300)
     # restore()
     corrected_mouse_atlas, latent_batch = vector_batch_removal(data, "Dataset", "Organ groups")
-    corrected_mouse_atlas.write("../data/reconstructed/scGen/mouse_atlas.h5ad")
+    corrected_mouse_atlas.write(ensure_dir_for_file("../data/reconstructed/scGen/mouse_atlas.h5ad"))
     # sc.pp.pca(corrected_mouse_atlas, svd_solver="arpack")
     # sc.pp.neighbors(corrected_mouse_atlas, n_neighbors=25)
     # sc.tl.umap(corrected_mouse_atlas)

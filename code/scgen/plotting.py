@@ -5,6 +5,7 @@ import pandas as pd
 from scipy import stats, sparse
 from adjustText import adjust_text
 import matplotlib
+from scgen.file_utils import ensure_dir_for_file
 font = {'family' : 'Arial',
         # 'weight' : 'bold',
         'size'   : 14}
@@ -114,7 +115,7 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
     ax.text(max(x) - max(x) * x_coeff, max(y) - y_coeff * max(y), r'$\mathrm{R^2_{\mathrm{\mathsf{all\ genes}}}}$= ' + f"{r_value ** 2:.2f}", fontsize=kwargs.get("textsize", fontsize))
     if diff_genes is not None:
         ax.text(max(x) - max(x) * x_coeff, max(y) - (y_coeff+0.15) * max(y), r'$\mathrm{R^2_{\mathrm{\mathsf{top\ 100\ DEGs}}}}$= ' + f"{r_value_diff ** 2:.2f}", fontsize=kwargs.get("textsize", fontsize))
-    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=300)
+    pyplot.savefig(ensure_dir_for_file(f"{path_to_save}"), bbox_inches='tight', dpi=300)
     if show:
         pyplot.show()
     pyplot.close()
@@ -216,7 +217,7 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
     ax.text(max(x) - max(x) * x_coeff, max(y) - y_coeff * max(y), r'$\mathrm{R^2_{\mathrm{\mathsf{all\ genes}}}}$= ' + f"{r_value ** 2:.2f}", fontsize=kwargs.get("textsize", fontsize))
     if diff_genes is not None:
         ax.text(max(x) - max(x) * x_coeff, max(y) - (y_coeff + 0.15) * max(y), r'$\mathrm{R^2_{\mathrm{\mathsf{top\ 100\ DEGs}}}}$= ' + f"{r_value_diff ** 2:.2f}", fontsize=kwargs.get("textsize", fontsize))
-    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=300)
+    pyplot.savefig(ensure_dir_for_file(f"{path_to_save}"), bbox_inches='tight', dpi=300)
     if show:
         pyplot.show()
     pyplot.close()
@@ -286,5 +287,5 @@ def binary_classifier(scg_object, adata, delta, condition_key, conditions, path_
     pyplot.yticks(fontsize=fontsize)
     ax = pyplot.gca()
     ax.grid(False)
-    pyplot.savefig(f"{path_to_save}", bbox_inches='tight', dpi=300)
+    pyplot.savefig(ensure_dir_for_file(f"{path_to_save}"), bbox_inches='tight', dpi=300)
     pyplot.show()

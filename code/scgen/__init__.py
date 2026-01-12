@@ -3,6 +3,7 @@
 from .models import *
 from .read_load import load_file
 from . import plotting
+from .file_utils import ensure_dir_for_file, ensure_dir
 
 
 __author__ = ', '.join([

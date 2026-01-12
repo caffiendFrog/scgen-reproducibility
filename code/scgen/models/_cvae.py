@@ -4,6 +4,7 @@ import os
 import tensorflow
 from scgen.models.util import shuffle_data, label_encoder
 from scipy import sparse
+from scgen.file_utils import ensure_dir_for_file
 
 log = logging.getLogger(__file__)
 
@@ -361,8 +362,9 @@ class CVAE:
                 else:
                     patience_cnt += 1
                 if patience_cnt > patience:
+                    ensure_dir_for_file(self.model_to_use)
                     save_path = self.saver.save(self.sess, self.model_to_use)
                     break
-        os.makedirs(self.model_to_use, exist_ok=True)
+        ensure_dir_for_file(self.model_to_use)
         save_path = self.saver.save(self.sess, self.model_to_use)
         print(f"Model saved in file: {save_path}. Training finished")

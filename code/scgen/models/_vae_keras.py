@@ -11,6 +11,7 @@ from keras.models import load_model
 from scipy import sparse
 
 import scgen
+from scgen.file_utils import ensure_dir
 from .util import balancer, extractor, shuffle_data
 
 log = logging.getLogger(__file__)
@@ -525,9 +526,9 @@ class VAEArithKeras:
                                         verbose=verbose)
 
         if save is True:
-            os.makedirs(self.model_to_use, exist_ok=True)
-            self.vae_model.save(os.path.join("vae.h5"), overwrite=True)
-            self.encoder_model.save(os.path.join("encoder.h5"), overwrite=True)
-            self.decoder_model.save(os.path.join("decoder.h5"), overwrite=True)
+            ensure_dir(self.model_to_use)
+            self.vae_model.save(os.path.join(self.model_to_use, "vae.h5"), overwrite=True)
+            self.encoder_model.save(os.path.join(self.model_to_use, "encoder.h5"), overwrite=True)
+            self.decoder_model.save(os.path.join(self.model_to_use, "decoder.h5"), overwrite=True)
             log.info(f"Models are saved in file: {self.model_to_use}. Training finished")
         return result

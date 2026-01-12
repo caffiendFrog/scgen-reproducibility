@@ -6,6 +6,7 @@ import scanpy.api as sc
 import scgen
 import scipy.sparse as sparse
 from sklearn.decomposition import PCA
+from scgen.file_utils import ensure_dir_for_file
 
 
 # =============================== downloading training and validation files ====================================
@@ -73,7 +74,7 @@ def reconstruct():
         else:
             all_data = all_data.concatenate(all_Data)
         print(cell_type)
-    sc.write("../data/reconstructed/PCAVecArithm/PCA_pbmc.h5ad", all_data)
+    sc.write(ensure_dir_for_file("../data/reconstructed/PCAVecArithm/PCA_pbmc.h5ad"), all_data)
 
 
 def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
@@ -124,9 +125,9 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = adata_list[3].var_names
     if p_type == "unbiased":
-        sc.write(f"../data/reconstructed/PCAVecArithm/PCA_CD4T.h5ad", all_Data)
+        sc.write(ensure_dir_for_file(f"../data/reconstructed/PCAVecArithm/PCA_CD4T.h5ad"), all_Data)
     else:
-        sc.write(f"../data/reconstructed/PCAVecArithm/PCA_CD4T_biased.h5ad", all_Data)
+        sc.write(ensure_dir_for_file(f"../data/reconstructed/PCAVecArithm/PCA_CD4T_biased.h5ad"), all_Data)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ import tensorflow as tf
 from scipy import sparse
 
 from .util import balancer, extractor, shuffle_data
+from scgen.file_utils import ensure_dir_for_file
 
 log = logging.getLogger(__file__)
 
@@ -475,12 +476,13 @@ class VAEArith:
                 else:
                     patience_cnt += 1
                 if patience_cnt > patience:
+                    ensure_dir_for_file(self.model_to_use)
                     save_path = self.saver.save(self.sess, self.model_to_use)
                     break
                 print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)},\t Validation Loss: {valid_loss / (valid_data.shape[0] // batch_size)}")
             else:
                 print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)}")
         if save:
-            os.makedirs(self.model_to_use, exist_ok=True)
+            ensure_dir_for_file(self.model_to_use)
             save_path = self.saver.save(self.sess, self.model_to_use)
             log.info(f"Model saved in file: {save_path}. Training finished")

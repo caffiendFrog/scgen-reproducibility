@@ -4,6 +4,7 @@ import numpy as np
 import scanpy.api as sc
 import tensorflow as tf
 from data_reader import data_reader
+from scgen.file_utils import ensure_dir_for_file
 
 # =============================== downloading training and validation files ====================================
 train_path = "../data/train_pbmc.h5ad"
@@ -279,7 +280,7 @@ if __name__ == "__main__":
         all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X.A) + ["real_stim"] * len(adata_list[2].X.A) + \
                                     ["pred_stim"] * len(predicted_cells)
         all_Data.var_names = adata_list[3].var_names
-        all_Data.write("../data/reconstructed/CGAN/cgan_cd4t.h5ad")
+        all_Data.write(ensure_dir_for_file("../data/reconstructed/CGAN/cgan_cd4t.h5ad"))
     if sys.argv[1] == "latent":
         low_dim = low_embed_stim(train_real.X)
         dt = sc.AnnData(low_dim)

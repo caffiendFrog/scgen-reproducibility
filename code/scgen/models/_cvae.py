@@ -3,6 +3,7 @@ import os
 
 import tensorflow
 from scgen.models.util import shuffle_data, label_encoder, prepare_latent_input
+from scgen.tf_compat import get_session_config
 from scipy import sparse
 from scgen.constants import DEFAULT_BATCH_SIZE
 from scgen.file_utils import ensure_dir_for_file, get_dense_X
@@ -53,7 +54,7 @@ class CVAE:
         self._create_network()
         self._loss_function()
         init = tensorflow.global_variables_initializer()
-        self.sess = tensorflow.InteractiveSession()
+        self.sess = tensorflow.InteractiveSession(config=get_session_config())
         self.saver = tensorflow.train.Saver(max_to_keep=1)
         self.sess.run(init)
 

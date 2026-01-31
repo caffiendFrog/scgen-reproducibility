@@ -6,7 +6,7 @@ import numpy as np
 import scanpy as sc
 import sklearn as sk
 # Enable TensorFlow 1.x compatibility for TensorFlow 2.x
-from scgen.tf_compat import enable_tf1_compatibility, batch_normalization
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, get_session_config
 enable_tf1_compatibility()
 import tensorflow as tf
 import wget
@@ -131,7 +131,7 @@ g_lrate = tf.placeholder(tf.float32, shape=[])
 global_step = tf.Variable(0, name='global_step', trainable=False, dtype=tf.int32)
 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     Solver = tf.train.AdamOptimizer(learning_rate=lr).minimize(vae_loss)
-sess = tf.InteractiveSession()
+sess = tf.InteractiveSession(config=get_session_config())
 saver = tf.train.Saver(max_to_keep=1)
 init = tf.global_variables_initializer().run()
 

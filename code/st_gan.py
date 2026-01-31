@@ -3,7 +3,7 @@ from random import shuffle
 import numpy as np
 import scanpy as sc
 # Enable TensorFlow 1.x compatibility for TensorFlow 2.x
-from scgen.tf_compat import enable_tf1_compatibility, batch_normalization
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, get_session_config
 enable_tf1_compatibility()
 import tensorflow as tf
 from data_reader import data_reader
@@ -228,7 +228,7 @@ with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     update_G = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(gen_loss,
                                                                             var_list=gen_sb_variables + gen_bs_variables)
 global_step = tf.Variable(0, name='global_step', trainable=False, dtype=tf.int32)
-sess = tf.InteractiveSession()
+sess = tf.InteractiveSession(config=get_session_config())
 saver = tf.train.Saver(max_to_keep=1)
 init = tf.global_variables_initializer().run()
 

@@ -100,6 +100,20 @@ def enable_tf1_compatibility():
         ) from e
 
 
+def get_session_config():
+    """
+    Returns a TF1.x Session ConfigProto with GPU-friendly defaults.
+
+    - allow_growth: avoid pre-allocating all GPU memory
+    - allow_soft_placement: fall back to CPU when an op has no GPU kernel
+    """
+    import tensorflow as tf
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    config.allow_soft_placement = True
+    return config
+
+
 def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3, 
                         center=True, scale=True, name=None):
     """

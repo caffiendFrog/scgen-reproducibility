@@ -5,7 +5,7 @@ import numpy
 import tensorflow as tf
 from scipy import sparse
 
-from scgen.tf_compat import batch_normalization
+from scgen.tf_compat import batch_normalization, get_session_config
 from scgen.constants import DEFAULT_BATCH_SIZE
 from .util import balancer, extractor, shuffle_data, prepare_latent_input
 from scgen.file_utils import ensure_dir_for_file, get_dense_X
@@ -51,7 +51,7 @@ class VAEArith:
         self.init_w = tf.keras.initializers.GlorotUniform()
         self._create_network()
         self._loss_function()
-        self.sess = tf.Session()
+        self.sess = tf.Session(config=get_session_config())
         self.saver = tf.train.Saver(max_to_keep=1)
         self.init = tf.global_variables_initializer().run(session=self.sess)
 

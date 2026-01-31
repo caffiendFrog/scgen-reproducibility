@@ -5,7 +5,7 @@ import numpy as np
 import anndata
 import sklearn as sk
 # Enable TensorFlow 1.x compatibility for TensorFlow 2.x
-from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, get_session_config
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense, dropout, get_session_config
 enable_tf1_compatibility()
 import tensorflow as tf
 import wget
@@ -68,18 +68,18 @@ def reconstruct(data, use_data=False):
 
 def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
-        h = tf.layers.dense(inputs=X, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dense(inputs=X, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
         h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
-        h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dropout(h, dr_rate, training=is_training)
+        h = dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
         h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
-        mean = tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
-        variance = tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
+        h = dropout(h, dr_rate, training=is_training)
+        mean = dense(inputs=h, units=z_dim, kernel_initializer=init_w)
+        variance = dense(inputs=h, units=z_dim, kernel_initializer=init_w)
         return mean, variance
 
 
@@ -98,18 +98,18 @@ def sample(n_sample):
 # =============================== P(X|z) ======================================
 def P(z, reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
-        h = tf.layers.dense(inputs=z, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dense(inputs=z, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
         h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = dropout(h, dr_rate, training=is_training)
 
-        h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
         h = batch_normalization(h, axis=1, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
-        h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
+        h = dropout(h, dr_rate, training=is_training)
+        h = dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
         h = tf.nn.relu(h)
         return h
 

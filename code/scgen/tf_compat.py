@@ -189,6 +189,72 @@ def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3,
         )
 
 
+def dense(inputs, units, kernel_initializer=None, use_bias=True, kernel_regularizer=None, name=None):
+    """
+    Compatibility wrapper for tf.layers.dense.
+
+    This uses tf.compat.v1.layers.dense when available, otherwise falls back to
+    tf.keras.layers.Dense for Keras 3 environments.
+    """
+    import tensorflow as tf
+    if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
+        v1_layers = getattr(tf.compat.v1, 'layers', None)
+        if v1_layers is not None and hasattr(v1_layers, 'dense'):
+            return v1_layers.dense(
+                inputs=inputs,
+                units=units,
+                kernel_initializer=kernel_initializer,
+                use_bias=use_bias,
+                kernel_regularizer=kernel_regularizer,
+                name=name,
+            )
+    if hasattr(tf, 'layers') and hasattr(tf.layers, 'dense'):
+        return tf.layers.dense(
+            inputs=inputs,
+            units=units,
+            kernel_initializer=kernel_initializer,
+            use_bias=use_bias,
+            kernel_regularizer=kernel_regularizer,
+            name=name,
+        )
+    layer = tf.keras.layers.Dense(
+        units=units,
+        kernel_initializer=kernel_initializer,
+        use_bias=use_bias,
+        kernel_regularizer=kernel_regularizer,
+        name=name,
+    )
+    return layer(inputs)
+
+
+def dropout(inputs, rate, training=False, name=None):
+    """
+    Compatibility wrapper for tf.layers.dropout.
+
+    Uses tf.compat.v1.layers.dropout when available, otherwise falls back to
+    tf.keras.layers.Dropout for Keras 3 environments.
+    """
+    import tensorflow as tf
+    if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
+        v1_layers = getattr(tf.compat.v1, 'layers', None)
+        if v1_layers is not None and hasattr(v1_layers, 'dropout'):
+            return v1_layers.dropout(
+                inputs=inputs,
+                rate=rate,
+                training=training,
+                name=name,
+            )
+    if hasattr(tf, 'layers') and hasattr(tf.layers, 'dropout'):
+        return tf.layers.dropout(
+            inputs=inputs,
+            rate=rate,
+            training=training,
+            name=name,
+        )
+    layer = tf.keras.layers.Dropout(rate=rate, name=name)
+    return layer(inputs, training=training)
+
+
 def _patch_tf1_symbols(tf):
     """
     Patch common TF1.x symbols into the top-level tf namespace.
@@ -212,6 +278,8 @@ def _patch_tf1_symbols(tf):
         tf.AUTO_REUSE = tf.compat.v1.AUTO_REUSE
     if not hasattr(tf, 'layers'):
         tf.layers = tf.compat.v1.layers
+    if not hasattr(tf, 'truncated_normal_initializer'):
+        tf.truncated_normal_initializer = tf.compat.v1.truncated_normal_initializer
 
     # Optimizers/checkpoints live under compat.v1 in TF2
     if hasattr(tf.compat, 'v1') and hasattr(tf.compat.v1, 'train'):

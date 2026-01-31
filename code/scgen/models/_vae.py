@@ -2,7 +2,7 @@ import logging
 import os
 
 import numpy
-from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, get_session_config
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense, dropout, get_session_config
 enable_tf1_compatibility()
 import tensorflow as tf
 from scipy import sparse
@@ -72,16 +72,16 @@ class VAEArith:
                     A dense layer consists of log transformed variances of gaussian distributions of latent space dimensions.
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
-            h = tf.layers.dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
+            h = dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
             h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
+            h = dropout(h, self.dropout_rate, training=self.is_training)
+            h = dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
             h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            mean = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
-            log_var = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            h = dropout(h, self.dropout_rate, training=self.is_training)
+            mean = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            log_var = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
             return mean, log_var
 
     def _decoder(self):
@@ -99,15 +99,15 @@ class VAEArith:
 
         """
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            h = tf.layers.dense(inputs=self.z_mean, units=800, kernel_initializer=self.init_w, use_bias=False)
+            h = dense(inputs=self.z_mean, units=800, kernel_initializer=self.init_w, use_bias=False)
             h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
+            h = dropout(h, self.dropout_rate, training=self.is_training)
+            h = dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
             h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
+            h = dropout(h, self.dropout_rate, training=self.is_training)
+            h = dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
             h = tf.nn.relu(h)
             return h
 

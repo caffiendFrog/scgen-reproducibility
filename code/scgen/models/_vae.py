@@ -2,10 +2,11 @@ import logging
 import os
 
 import numpy
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, get_session_config
+enable_tf1_compatibility()
 import tensorflow as tf
 from scipy import sparse
 
-from scgen.tf_compat import batch_normalization, get_session_config
 from scgen.constants import DEFAULT_BATCH_SIZE
 from .util import balancer, extractor, shuffle_data, prepare_latent_input
 from scgen.file_utils import ensure_dir_for_file, get_dense_X

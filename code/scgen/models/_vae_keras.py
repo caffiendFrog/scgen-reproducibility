@@ -1,6 +1,8 @@
 import logging
 import os
 
+from scgen.tf_compat import enable_tf1_compatibility
+enable_tf1_compatibility()
 import keras
 import numpy
 import tensorflow as tf

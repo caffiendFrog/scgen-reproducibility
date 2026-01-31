@@ -206,6 +206,12 @@ def _patch_tf1_symbols(tf):
         tf.ConfigProto = tf.compat.v1.ConfigProto
     if not hasattr(tf, 'global_variables_initializer'):
         tf.global_variables_initializer = tf.compat.v1.global_variables_initializer
+    if not hasattr(tf, 'variable_scope'):
+        tf.variable_scope = tf.compat.v1.variable_scope
+    if not hasattr(tf, 'AUTO_REUSE'):
+        tf.AUTO_REUSE = tf.compat.v1.AUTO_REUSE
+    if not hasattr(tf, 'layers'):
+        tf.layers = tf.compat.v1.layers
 
     # Optimizers/checkpoints live under compat.v1 in TF2
     if hasattr(tf.compat, 'v1') and hasattr(tf.compat.v1, 'train'):

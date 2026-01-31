@@ -1,5 +1,29 @@
+import ctypes
+import json
+import os
+import platform
+import sys
+import time
+
 import scgen
-import scanpy as sc
+
+
+conda_prefix = os.environ.get("CONDA_PREFIX") or sys.prefix
+conda_libstdcxx = os.path.join(conda_prefix, "lib", "libstdc++.so.6")
+if os.path.isfile(conda_libstdcxx):
+    try:
+        ctypes.CDLL(conda_libstdcxx, mode=ctypes.RTLD_GLOBAL)
+    except OSError as e:
+        raise ImportError(
+            "ctypes.CDLL is required for visualization utilities. "
+        ) from e
+try:
+    import scanpy as sc
+except Exception as e:
+    raise ImportError(
+        "scanpy is required for visualization utilities. "
+        "Install scanpy (and matplotlib) or avoid plotting functions."
+    ) from e
 import numpy as np
 from scgen.file_utils import ensure_dir_for_file
 

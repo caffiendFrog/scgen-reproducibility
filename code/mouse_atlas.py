@@ -3,7 +3,7 @@ from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, get_s
 enable_tf1_compatibility()
 import tensorflow as tf
 import numpy as np
-import scanpy as sc
+import anndata
 from random import  shuffle
 import wget
 import os
@@ -14,16 +14,15 @@ from scgen.constants import DEFAULT_BATCH_SIZE
 train_path = "../data/MouseAtlas.subset.h5ad"
 
 if os.path.isfile(train_path):
-    data = sc.read(train_path)
+    data = anndata.read_h5ad(train_path)
 else:
     train_url = "https://www.dropbox.com/s/zkss8ds1pi0384p/MouseAtlas.subset.h5ad?dl=1"
     t_dl = wget.download(train_url, train_path)
-    data = sc.read(train_path)
+    data = anndata.read_h5ad(train_path)
 
 
 
 
-sc.settings.figdir = "../results"
 model_to_use = "../models/mouse_atlas/scgen"
 batch_size = DEFAULT_BATCH_SIZE
 train_real = data
@@ -155,7 +154,7 @@ def restore():
 def vector_batch_removal(inp, batch_key1, batch_key2):
     # projecting data to latent space
     latent_all = give_me_latent(inp.X)
-    latent_ann = sc.AnnData(latent_all)
+    latent_ann = anndata.AnnData(latent_all)
     latent_ann.obs["cell_type"] = inp.obs["Cell types"].tolist()
     latent_ann.obs["batch"] = inp.obs[batch_key1].tolist()
     latent_ann.obs[batch_key1] = inp.obs[batch_key1].tolist()
@@ -194,11 +193,11 @@ def vector_batch_removal(inp, batch_key1, batch_key2):
             batch_list[study].X = delta + batch_list[study].X
             temp_cell[batch_ind[study]].X = batch_list[study].X
         shared_anns.append(temp_cell)
-    all_shared_ann = sc.AnnData.concatenate(*shared_anns)
+    all_shared_ann = anndata.AnnData.concatenate(*shared_anns)
 
     if (len(not_shared_cell_types) < 1):
         # reconstructing data to gene epxression space
-        corrected = sc.AnnData(reconstruct(all_shared_ann.X, use_data=True))
+        corrected = anndata.AnnData(reconstruct(all_shared_ann.X, use_data=True))
         corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
         corrected.obs[batch_key1] = all_shared_ann.obs[batch_key1].tolist()
         corrected.obs[batch_key2] = all_shared_ann.obs[batch_key2].tolist()
@@ -207,16 +206,16 @@ def vector_batch_removal(inp, batch_key1, batch_key2):
         return corrected, all_shared_ann
 
     else:
-        all_not_shared_ann = sc.AnnData.concatenate(*not_shared_ann)
-        all_corrected_data = sc.AnnData.concatenate(all_shared_ann, all_not_shared_ann)
+        all_not_shared_ann = anndata.AnnData.concatenate(*not_shared_ann)
+        all_corrected_data = anndata.AnnData.concatenate(all_shared_ann, all_not_shared_ann)
         # reconstructing data to gene epxression space
-        corrected = sc.AnnData(reconstruct(all_corrected_data.X, use_data=True))
+        corrected = anndata.AnnData(reconstruct(all_corrected_data.X, use_data=True))
         corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist() + all_not_shared_ann.obs[
             "cell_type"].tolist()
         corrected.obs["study"] = all_shared_ann.obs[batch_key1].tolist() + all_not_shared_ann.obs["batch"].tolist()
         corrected.var_names = data.var_names.tolist()
         # shared cell_types
-        corrected_shared = sc.AnnData(reconstruct(all_shared_ann.X, use_data=True))
+        corrected_shared = anndata.AnnData(reconstruct(all_shared_ann.X, use_data=True))
         corrected_shared.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
         corrected_shared.obs["study"] = all_shared_ann.obs[batch_key1].tolist()
         corrected_shared.var_names = inp.var_names.tolist()

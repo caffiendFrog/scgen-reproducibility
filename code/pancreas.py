@@ -1,9 +1,8 @@
 import os
 from random import shuffle
 
-import matplotlib
 import numpy as np
-import scanpy as sc
+import anndata
 import sklearn as sk
 # Enable TensorFlow 1.x compatibility for TensorFlow 2.x
 from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, get_session_config
@@ -16,14 +15,12 @@ from scgen.constants import DEFAULT_BATCH_SIZE
 train_path = "../data/pancreas.h5ad"
 
 if os.path.exists(train_path):
-    data = sc.read(train_path)
+    data = anndata.read_h5ad(train_path)
 else:
     train_url = "https://www.dropbox.com/s/zvmt8oxhfksumw2/pancreas.h5ad?dl=1"
     t_dl = wget.download(train_url, train_path)
-    data = sc.read(train_path)
+    data = anndata.read_h5ad(train_path)
 
-path_to_save = "../results/Figures/Figure 6/"
-sc.settings.figdir = path_to_save
 model_to_use = "../models/scGen/pancreas/scgen"
 batch_size = DEFAULT_BATCH_SIZE
 train_real = data
@@ -166,7 +163,7 @@ def train(n_epochs, full_training=True, initial_run=True):
 def vector_batch_removal():
     # projecting data to latent space
     latent_all = give_me_latent(data.X)
-    latent_ann = sc.AnnData(latent_all)
+    latent_ann = anndata.AnnData(latent_all)
     latent_ann.obs["cell_type"] = data.obs["cell_type"].tolist()
     latent_ann.obs["batch"] = data.obs["batch"].tolist()
     latent_ann.obs["sample"] = data.obs["sample"].tolist()
@@ -195,18 +192,18 @@ def vector_batch_removal():
         for study in batch_list:
             delta = np.average(max_batch_ann.X, axis=0) - np.average(batch_list[study].X, axis=0)
             batch_list[study].X = delta + batch_list[study].X
-        corrected = sc.AnnData.concatenate(*list(batch_list.values()))
+        corrected = anndata.AnnData.concatenate(*list(batch_list.values()))
         shared_anns.append(corrected)
-    all_shared_ann = sc.AnnData.concatenate(*shared_anns)
-    all_not_shared_ann = sc.AnnData.concatenate(*not_shared_ann)
-    all_corrected_data = sc.AnnData.concatenate(all_shared_ann, all_not_shared_ann)
+    all_shared_ann = anndata.AnnData.concatenate(*shared_anns)
+    all_not_shared_ann = anndata.AnnData.concatenate(*not_shared_ann)
+    all_corrected_data = anndata.AnnData.concatenate(all_shared_ann, all_not_shared_ann)
     # reconstructing data to gene epxression space
-    corrected = sc.AnnData(reconstruct(all_corrected_data.X, use_data=True))
+    corrected = anndata.AnnData(reconstruct(all_corrected_data.X, use_data=True))
     corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist() + all_not_shared_ann.obs["cell_type"].tolist()
     corrected.obs["study"] = all_shared_ann.obs["sample"].tolist() + all_not_shared_ann.obs["sample"].tolist()
     corrected.var_names = data.var_names.tolist()
     # shared cell_types
-    corrected_shared = sc.AnnData(reconstruct(all_shared_ann.X, use_data=True))
+    corrected_shared = anndata.AnnData(reconstruct(all_shared_ann.X, use_data=True))
     corrected_shared.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
     corrected_shared.obs["study"] = all_shared_ann.obs["sample"].tolist()
     corrected_shared.var_names = data.var_names.tolist()

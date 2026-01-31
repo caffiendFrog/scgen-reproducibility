@@ -76,10 +76,7 @@ def enable_tf1_compatibility():
             # Disable TensorFlow 2.x behaviors (eager execution, etc.)
             tf.compat.v1.disable_v2_behavior()
             
-            # Patch common TF1.x functions to main tf namespace for convenience
-            # This allows code using 'tf.reset_default_graph()' to work without changes
-            if not hasattr(tf, 'reset_default_graph'):
-                tf.reset_default_graph = tf.compat.v1.reset_default_graph
+            _patch_tf1_symbols(tf)
             
             if log.isEnabledFor(logging.INFO):
                 log.info(
@@ -108,7 +105,10 @@ def get_session_config():
     - allow_soft_placement: fall back to CPU when an op has no GPU kernel
     """
     import tensorflow as tf
-    config = tf.ConfigProto()
+    if hasattr(tf, 'ConfigProto'):
+        config = tf.ConfigProto()
+    else:
+        config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
     config.allow_soft_placement = True
     return config
@@ -189,16 +189,37 @@ def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3,
         )
 
 
+def _patch_tf1_symbols(tf):
+    """
+    Patch common TF1.x symbols into the top-level tf namespace.
+
+    This keeps legacy code working after tf.compat.v1.disable_v2_behavior().
+    """
+    # Graph/session helpers
+    if not hasattr(tf, 'reset_default_graph'):
+        tf.reset_default_graph = tf.compat.v1.reset_default_graph
+    if not hasattr(tf, 'placeholder'):
+        tf.placeholder = tf.compat.v1.placeholder
+    if not hasattr(tf, 'Session'):
+        tf.Session = tf.compat.v1.Session
+    if not hasattr(tf, 'ConfigProto'):
+        tf.ConfigProto = tf.compat.v1.ConfigProto
+    if not hasattr(tf, 'global_variables_initializer'):
+        tf.global_variables_initializer = tf.compat.v1.global_variables_initializer
+
+    # Optimizers/checkpoints live under compat.v1 in TF2
+    if hasattr(tf.compat, 'v1') and hasattr(tf.compat.v1, 'train'):
+        if not hasattr(tf, 'train') or not hasattr(tf.train, 'AdamOptimizer'):
+            tf.train = tf.compat.v1.train
+
+
 # Auto-configure when this module is imported
 # This ensures compatibility is enabled when scgen is imported
 try:
     enable_tf1_compatibility()
-    # Patch tf module to add common TF1.x functions to main namespace
-    # This allows code using 'tf.reset_default_graph()' to work without changes
     import tensorflow as tf
     if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
-        if not hasattr(tf, 'reset_default_graph'):
-            tf.reset_default_graph = tf.compat.v1.reset_default_graph
+        _patch_tf1_symbols(tf)
 except (ImportError, RuntimeError) as e:
     # Log but don't fail on import - allows the package to be imported
     # even if TensorFlow isn't installed yet (useful for documentation, etc.)

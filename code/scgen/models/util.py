@@ -3,13 +3,33 @@ from random import shuffle
 
 import anndata
 import numpy as np
-import scanpy as sc
-from matplotlib import pyplot as plt
 from scipy import sparse
 from sklearn import preprocessing
 
 import scgen
 from scgen.file_utils import get_dense_X
+
+
+def _require_scanpy():
+    try:
+        import scanpy as sc  # type: ignore
+    except Exception as exc:
+        raise ImportError(
+            "scanpy is required for visualization utilities. "
+            "Install scanpy (and matplotlib) or avoid plotting functions."
+        ) from exc
+    return sc
+
+
+def _require_pyplot():
+    try:
+        from matplotlib import pyplot as plt  # type: ignore
+    except Exception as exc:
+        raise ImportError(
+            "matplotlib is required for visualization utilities. "
+            "Install matplotlib or avoid plotting functions."
+        ) from exc
+    return plt
 
 
 def data_remover(adata, remain_list, remove_list, cell_type_key, condition_key):
@@ -362,6 +382,8 @@ def visualize_trained_network_results(network, train, cell_type,
                                       path_to_save="./figures/",
                                       plot_umap=True,
                                       plot_reg=True):
+    sc = _require_scanpy()
+    plt = _require_pyplot()
     plt.close("all")
     os.makedirs(path_to_save, exist_ok=True)
     sc.settings.figdir = os.path.abspath(path_to_save)

@@ -2,7 +2,7 @@ import logging
 import os
 
 import tensorflow
-from scgen.models.util import shuffle_data, label_encoder
+from scgen.models.util import shuffle_data, label_encoder, prepare_latent_input
 from scipy import sparse
 from scgen.constants import DEFAULT_BATCH_SIZE
 from scgen.file_utils import ensure_dir_for_file, get_dense_X
@@ -181,8 +181,7 @@ class CVAE:
                 latent: numpy nd-array
                     returns array containing latent space encoding of 'data'
         """
-        if sparse.issparse(data):
-            data = data.A
+        data = prepare_latent_input(data, expected_dim=self.x_dim)
         latent = self.sess.run(self.z_mean, feed_dict={self.x: data, self.y: labels,
                                                        self.size: data.shape[0], self.is_training: False})
         return latent

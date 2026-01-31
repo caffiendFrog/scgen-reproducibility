@@ -231,6 +231,28 @@ def shuffle_data(adata, labels=None):
         return anndata.AnnData(x, obs=adata.obs)
 
 
+def prepare_latent_input(data, expected_dim=None):
+    """
+    Validates and normalizes latent-space inputs.
+    """
+    if sparse.issparse(data):
+        raise TypeError("Sparse matrices are not supported for latent encoding. "
+                        "Convert to dense (e.g., `.toarray()`) before calling to_latent.")
+    if not isinstance(data, np.ndarray):
+        raise TypeError(f"Expected numpy array, got {type(data)}")
+    if data.ndim != 2:
+        raise ValueError(f"Expected 2D array, got {data.ndim}D array with shape {data.shape}")
+    if data.shape[0] == 0:
+        raise ValueError("Input data has 0 samples (rows)")
+    if expected_dim is not None and data.shape[1] != expected_dim:
+        raise ValueError(
+            f"Input data has {data.shape[1]} features, but model expects {expected_dim} features. "
+            f"Shape: {data.shape}, Expected: [n_cells, {expected_dim}]. "
+            "This usually indicates a mismatch between training and inference data preprocessing."
+        )
+    return data
+
+
 def batch_removal(network, adata):
     """
         Removes batch effect of adata

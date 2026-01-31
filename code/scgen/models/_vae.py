@@ -7,7 +7,7 @@ from scipy import sparse
 
 from scgen.tf_compat import batch_normalization
 from scgen.constants import DEFAULT_BATCH_SIZE
-from .util import balancer, extractor, shuffle_data
+from .util import balancer, extractor, shuffle_data, prepare_latent_input
 from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 log = logging.getLogger(__file__)
@@ -177,6 +177,7 @@ class VAEArith:
                 latent: numpy nd-array
                     Returns array containing latent space encoding of 'data'
         """
+        data = prepare_latent_input(data, expected_dim=self.x_dim)
         latent = self.sess.run(self.z_mean, feed_dict={self.x: data, self.size: data.shape[0], self.is_training: False})
         return latent
 
@@ -347,7 +348,7 @@ class VAEArith:
         lat_cd = self._avg_vector(cd_x.X[cd_ind, :])
         lat_stim = self._avg_vector(stim_x.X[stim_ind, :])
         delta = lat_stim - lat_cd
-        latent_cd = self.to_latent(cd_y.X)
+        latent_cd = self.to_latent(get_dense_X(cd_y.X))
         stim_pred = delta + latent_cd
         predicted_cells = self.reconstruct(stim_pred, use_data=True)
         return predicted_cells, delta

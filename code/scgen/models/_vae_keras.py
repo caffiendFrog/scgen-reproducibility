@@ -13,7 +13,7 @@ from scipy import sparse
 import scgen
 from scgen.file_utils import ensure_dir
 from scgen.constants import DEFAULT_BATCH_SIZE
-from .util import balancer, extractor, shuffle_data
+from .util import balancer, extractor, shuffle_data, prepare_latent_input
 from scgen.file_utils import get_dense_X
 
 log = logging.getLogger(__file__)
@@ -227,6 +227,7 @@ class VAEArithKeras:
             latent: numpy nd-array
                 Returns array containing latent space encoding of 'data'
         """
+        data = prepare_latent_input(data, expected_dim=self.x_dim)
         latent = self.encoder_model.predict(data)[2]
         return latent
 

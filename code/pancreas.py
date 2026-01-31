@@ -1,4 +1,6 @@
+import json
 import os
+import time
 from random import shuffle
 
 import numpy as np
@@ -14,11 +16,58 @@ from scgen.constants import DEFAULT_BATCH_SIZE
 
 train_path = "../data/pancreas.h5ad"
 
+# #region agent log
+def _log_debug(message, data, hypothesis_id, run_id="pre-fix"):
+    payload = {
+        "sessionId": "debug-session",
+        "runId": run_id,
+        "hypothesisId": hypothesis_id,
+        "location": "pancreas.py",
+        "message": message,
+        "data": data,
+        "timestamp": int(time.time() * 1000),
+    }
+    log_path = r"c:\Users\silly\GitHub\scgen-reproducibility\.cursor\debug.log"
+    with open(log_path, "a", encoding="utf-8") as log_file:
+        log_file.write(json.dumps(payload, ensure_ascii=True) + "\n")
+# #endregion
+
+def _peek_file_signature(path, n_bytes=8):
+    try:
+        with open(path, "rb") as file_handle:
+            return file_handle.read(n_bytes).hex()
+    except OSError:
+        return None
+
 if os.path.exists(train_path):
+    # #region agent log
+    _log_debug(
+        "pancreas_h5ad_pre_read",
+        {
+            "path": train_path,
+            "exists": True,
+            "size_bytes": os.path.getsize(train_path),
+            "signature_hex": _peek_file_signature(train_path),
+        },
+        "H3",
+    )
+    # #endregion
     data = anndata.read_h5ad(train_path)
 else:
     train_url = "https://www.dropbox.com/s/zvmt8oxhfksumw2/pancreas.h5ad?dl=1"
     t_dl = wget.download(train_url, train_path)
+    # #region agent log
+    _log_debug(
+        "pancreas_h5ad_post_download",
+        {
+            "path": train_path,
+            "exists": os.path.exists(train_path),
+            "size_bytes": os.path.getsize(train_path) if os.path.exists(train_path) else None,
+            "signature_hex": _peek_file_signature(train_path),
+        },
+        "H3",
+    )
+    # #endregion
     data = anndata.read_h5ad(train_path)
 
 model_to_use = "../models/scGen/pancreas/scgen"

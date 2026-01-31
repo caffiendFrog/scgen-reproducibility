@@ -1,5 +1,50 @@
+import json
+import os
+import platform
+import sys
+import time
+
 import scgen
-import scanpy as sc
+
+# #region agent log
+def _log_debug(message, data, hypothesis_id, run_id="pre-fix"):
+    payload = {
+        "sessionId": "debug-session",
+        "runId": run_id,
+        "hypothesisId": hypothesis_id,
+        "location": "train_cvae.py",
+        "message": message,
+        "data": data,
+        "timestamp": int(time.time() * 1000),
+    }
+    log_path = r"c:\Users\silly\GitHub\scgen-reproducibility\.cursor\debug.log"
+    with open(log_path, "a", encoding="utf-8") as log_file:
+        log_file.write(json.dumps(payload, ensure_ascii=True) + "\n")
+# #endregion
+
+# #region agent log
+_log_debug(
+    "pre_scanpy_import",
+    {
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "conda_prefix": os.environ.get("CONDA_PREFIX"),
+        "ld_library_path": os.environ.get("LD_LIBRARY_PATH"),
+    },
+    "H1",
+)
+# #endregion
+try:
+    import scanpy as sc
+except Exception as e:
+    # #region agent log
+    _log_debug(
+        "scanpy_import_error",
+        {"error_type": type(e).__name__, "error_message": str(e)},
+        "H1",
+    )
+    # #endregion
+    raise
 import numpy as np
 from scgen.file_utils import ensure_dir_for_file
 

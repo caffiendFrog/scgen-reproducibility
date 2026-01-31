@@ -1,5 +1,7 @@
+import json
 import logging
 import os
+import time
 
 import numpy
 from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, get_session_config
@@ -13,6 +15,21 @@ from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 log = logging.getLogger(__file__)
 
+# #region agent log
+def _log_debug(message, data, hypothesis_id, run_id="pre-fix"):
+    payload = {
+        "sessionId": "debug-session",
+        "runId": run_id,
+        "hypothesisId": hypothesis_id,
+        "location": "scgen/models/_vae.py",
+        "message": message,
+        "data": data,
+        "timestamp": int(time.time() * 1000),
+    }
+    log_path = r"c:\Users\silly\GitHub\scgen-reproducibility\.cursor\debug.log"
+    with open(log_path, "a", encoding="utf-8") as log_file:
+        log_file.write(json.dumps(payload, ensure_ascii=True) + "\n")
+# #endregion
 
 class VAEArith:
     """
@@ -50,6 +67,20 @@ class VAEArith:
         self.time_step = tf.placeholder(tf.int32)
         self.size = tf.placeholder(tf.int32)
         self.init_w = tf.keras.initializers.GlorotUniform()
+        # #region agent log
+        _log_debug(
+            "vae_init_tf_versions",
+            {
+                "tf_version": getattr(tf, "__version__", None),
+                "keras_version": getattr(tf.keras, "__version__", None),
+                "has_tf_layers": hasattr(tf, "layers"),
+                "has_tf_layers_dense": hasattr(getattr(tf, "layers", None), "dense"),
+                "has_compat_v1_layers_dense": hasattr(getattr(getattr(tf, "compat", None), "v1", None), "layers")
+                and hasattr(getattr(getattr(getattr(tf, "compat", None), "v1", None), "layers", None), "dense"),
+            },
+            "H2",
+        )
+        # #endregion
         self._create_network()
         self._loss_function()
         self.sess = tf.Session(config=get_session_config())
@@ -72,6 +103,16 @@ class VAEArith:
                     A dense layer consists of log transformed variances of gaussian distributions of latent space dimensions.
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
+            # #region agent log
+            _log_debug(
+                "encoder_dense_entry",
+                {
+                    "tf_layers_type": type(getattr(tf, "layers", None)).__name__,
+                    "tf_layers_repr": str(getattr(tf, "layers", None))[:120],
+                },
+                "H2",
+            )
+            # #endregion
             h = tf.layers.dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
             h = batch_normalization(h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)

@@ -373,7 +373,35 @@ class VAEArith:
                 network.restore_model()
             ```
         """
-        self.saver.restore(self.sess, self.model_to_use)
+        try:
+            self.saver.restore(self.sess, self.model_to_use)
+        except (tf.errors.NotFoundError, tf.errors.InvalidArgumentError) as e:
+            log.warning(f"Full restore failed ({type(e).__name__}): {e}. Attempting partial restore.")
+            try:
+                reader = tf.train.NewCheckpointReader(self.model_to_use)
+                checkpoint_var_map = reader.get_variable_to_shape_map()
+            except Exception as reader_error:
+                log.error(f"Failed to read checkpoint for partial restore: {reader_error}")
+                raise
+            variables_to_restore = []
+            for var in tf.global_variables():
+                var_name = var.name.split(":")[0]
+                if var_name in checkpoint_var_map:
+                    checkpoint_shape = checkpoint_var_map[var_name]
+                    if list(checkpoint_shape) == list(var.shape.as_list()):
+                        variables_to_restore.append(var)
+                    else:
+                        log.warning(
+                            f"Variable {var_name} shape mismatch: checkpoint {checkpoint_shape} vs graph {var.shape.as_list()}"
+                        )
+                else:
+                    log.warning(f"Variable {var_name} not found in checkpoint.")
+            if not variables_to_restore:
+                log.error("No matching variables found for partial restore.")
+                raise
+            partial_saver = tf.train.Saver(variables_to_restore)
+            partial_saver.restore(self.sess, self.model_to_use)
+            log.warning("Partial restore completed. Some variables may be uninitialized.")
 
     def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=DEFAULT_BATCH_SIZE, early_stop_limit=20,
               threshold=0.0025, initial_run=True, shuffle=True, save=True):

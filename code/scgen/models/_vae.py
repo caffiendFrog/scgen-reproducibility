@@ -48,7 +48,7 @@ class VAEArith:
         self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim], name="latent")
         self.time_step = tf.placeholder(tf.int32)
         self.size = tf.placeholder(tf.int32)
-        self.init_w = tf.contrib.layers.xavier_initializer()
+        self.init_w = tf.keras.initializers.GlorotUniform()
         self._create_network()
         self._loss_function()
         self.sess = tf.Session()

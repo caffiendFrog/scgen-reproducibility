@@ -49,7 +49,7 @@ class CVAE:
         self.y = tensorflow.placeholder(tensorflow.float32, shape=[None, 1], name="labels")
         self.time_step = tensorflow.placeholder(tensorflow.int32)
         self.size = tensorflow.placeholder(tensorflow.int32)
-        self.init_w = tensorflow.contrib.layers.xavier_initializer()
+        self.init_w = tensorflow.keras.initializers.GlorotUniform()
         self._create_network()
         self._loss_function()
         init = tensorflow.global_variables_initializer()

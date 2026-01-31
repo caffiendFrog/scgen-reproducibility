@@ -42,7 +42,7 @@ data_max_value = np.amax(input_matrix)
 time_step = tf.placeholder(tf.int32)
 size  = tf.placeholder(tf.int32)
 is_training = tf.placeholder(tf.bool)
-init_w =  tf.contrib.layers.xavier_initializer()
+init_w =  tf.keras.initializers.GlorotUniform()
 regularizer = tf.contrib.layers.l2_regularizer(scale=0.1)
 
 def give_me_latent(data):

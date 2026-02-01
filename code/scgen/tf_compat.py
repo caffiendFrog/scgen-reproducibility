@@ -208,10 +208,10 @@ def batch_normalization(
 
         def _batch_norm_train():
             batch_mean, batch_var = tf.nn.moments(h, axes=reduce_axes_list)
-            update_mean = tf.compat.v1.assign_moving_average(
+            update_mean = tf.compat.v1.train.assign_moving_average(
                 moving_mean, batch_mean, decay=momentum, zero_debias=False
             )
-            update_var = tf.compat.v1.assign_moving_average(
+            update_var = tf.compat.v1.train.assign_moving_average(
                 moving_var, batch_var, decay=momentum, zero_debias=False
             )
             tf.compat.v1.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_mean)
@@ -293,12 +293,22 @@ def _patch_tf1_symbols(tf):
         tf.variable_scope = tf.compat.v1.variable_scope
     if not hasattr(tf, 'get_variable'):
         tf.get_variable = tf.compat.v1.get_variable
+    if not hasattr(tf, 'get_collection'):
+        tf.get_collection = tf.compat.v1.get_collection
+    if not hasattr(tf, 'GraphKeys'):
+        tf.GraphKeys = tf.compat.v1.GraphKeys
     if not hasattr(tf, 'AUTO_REUSE'):
         tf.AUTO_REUSE = tf.compat.v1.AUTO_REUSE
     if not hasattr(tf, 'layers'):
         tf.layers = tf.compat.v1.layers
     if not hasattr(tf, 'truncated_normal_initializer'):
         tf.truncated_normal_initializer = tf.compat.v1.truncated_normal_initializer
+    if not hasattr(tf, 'assign'):
+        tf.assign = tf.compat.v1.assign
+    if not hasattr(tf, 'InteractiveSession'):
+        tf.InteractiveSession = tf.compat.v1.InteractiveSession
+    if not hasattr(tf, 'losses'):
+        tf.losses = tf.compat.v1.losses
 
     # Optimizers/checkpoints live under compat.v1 in TF2
     if hasattr(tf.compat, 'v1') and hasattr(tf.compat.v1, 'train'):

@@ -205,29 +205,16 @@ def dense(tensors, units, *, use_bias=True, kernel_initializer=None, kernel_regu
     )(tensors)
 
 
-def dropout(inputs, rate, training=False, noise_shape=None, seed=None, name=None):
+def dropout(tensors, rate, is_training):
     """
-    Compatibility wrapper for tf.layers.dropout with Keras 3 fallback.
+    Compatibility wrapper for tf.layers.dropout for Keras 3.
     """
     import tensorflow as tf
-    legacy = _get_legacy_layer(tf, 'dropout')
-    if legacy is not None:
-        return legacy(
-            inputs=inputs,
-            rate=rate,
-            training=training,
-            noise_shape=noise_shape,
-            seed=seed,
-            name=name
-        )
-    return _call_keras_layer(
-        tf.keras.layers.Dropout,
-        inputs,
-        training=training,
-        rate=rate,
-        noise_shape=noise_shape,
-        seed=seed,
-        name=name
+
+    return tf.cond(
+        is_training,
+        lambda: tf.nn.dropout(tensors, rate=rate),
+        lambda: tensors,
     )
 
 

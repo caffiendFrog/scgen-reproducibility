@@ -92,5 +92,11 @@ Then you can run each notebook and reproduce the results.
 
 - **`get_version` import error**: If you encounter an error importing `get_version` when using `scgen`, you may need to install it separately or modify `code/scgen/__init__.py` to handle versioning differently. This does not affect the analysis functionality.
 - **Windows symlink issues**: If symbolic link creation fails on Windows, the script automatically falls back to a directory junction, which works without special privileges.
+- **Linux/SageMaker `CXXABI_1.3.15` error**: This means the system `libstdc++.so.6` is older than what `matplotlib` (via `scanpy`) was built against. Ensure the environment provides a newer `libstdc++` and that it is picked first:
+  ```bash
+  conda install -c conda-forge "libstdcxx-ng>=12" "libgcc-ng>=12"
+  export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
+  ```
+  Then re-run `python -c "import matplotlib; import scanpy"`.
 
 All datasets are available in this drive [directory](https://drive.google.com/drive/folders/1v3qySFECxtqWLRhRTSbfQDFqdUCAXql3).

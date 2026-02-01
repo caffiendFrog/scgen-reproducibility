@@ -253,7 +253,7 @@ def dense(inputs, units, *, use_bias=True, kernel_initializer=None, kernel_regul
     )(inputs)
 
 
-def dropout(inputs, rate, is_training):
+def dropout(inputs, rate, training):
     """
     TF1-style dropout wrapper with explicit training gate.
 
@@ -266,7 +266,7 @@ def dropout(inputs, rate, is_training):
     import tensorflow as tf
 
     return tf.cond(
-        is_training,
+        training,
         lambda: tf.nn.dropout(inputs, rate=rate),
         lambda: inputs,
     )

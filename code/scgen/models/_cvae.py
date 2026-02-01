@@ -83,10 +83,22 @@ class CVAE:
         with tensorflow.variable_scope("encoder", reuse=tensorflow.AUTO_REUSE):
             xy = tensorflow.concat([self.x, self.y], axis=1)
             h = dense(inputs=xy, units=700, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
-            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
+            h = batch_normalization(
+                reduce_axes=True,
+                h=h,
+                axis=1,
+                training=self.is_training,
+                scope="encoder_bn_700",
+            )
             h = tensorflow.nn.leaky_relu(h)
             h = dense(inputs=h, units=400, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
-            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
+            h = batch_normalization(
+                reduce_axes=True,
+                h=h,
+                axis=1,
+                training=self.is_training,
+                scope="encoder_bn_400",
+            )
             h = tensorflow.nn.leaky_relu(h)
             h = dropout(h, self.dr_rate, training=self.is_training)
             mean = dense(inputs=h, units=self.z_dim, kernel_initializer=fresh_glorot_initializer())
@@ -110,10 +122,22 @@ class CVAE:
         with tensorflow.variable_scope("decoder", reuse=tensorflow.AUTO_REUSE):
             xy = tensorflow.concat([self.z_mean, self.y], axis=1)
             h = dense(inputs=xy, units=400, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
-            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
+            h = batch_normalization(
+                reduce_axes=True,
+                h=h,
+                axis=1,
+                training=self.is_training,
+                scope="decoder_bn_400",
+            )
             h = tensorflow.nn.leaky_relu(h)
             h = dense(inputs=h, units=700, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
-            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
+            h = batch_normalization(
+                reduce_axes=True,
+                h=h,
+                axis=1,
+                training=self.is_training,
+                scope="decoder_bn_700",
+            )
             h = tensorflow.nn.leaky_relu(h)
             h = dropout(h, self.dr_rate, training=self.is_training)
             h = dense(inputs=h, units=self.x_dim, kernel_initializer=fresh_glorot_initializer(), use_bias=True)

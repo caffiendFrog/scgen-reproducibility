@@ -79,11 +79,23 @@ class VAEArith:
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
             h = dense(inputs=self.x, units=800, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
-            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
+            h = batch_normalization(
+                reduce_axes=True,
+                h=h,
+                axis=1,
+                training=self.is_training,
+                scope="encoder_bn_700",
+            )
             h = tf.nn.leaky_relu(h)
             h = dropout(h, self.dropout_rate, training=self.is_training)
             h = dense(inputs=h, units=800, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
-            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
+            h = batch_normalization(
+                reduce_axes=True,
+                h=h,
+                axis=1,
+                training=self.is_training,
+                scope="encoder_bn_400",
+            )
             h = tf.nn.leaky_relu(h)
             h = dropout(h, self.dropout_rate, training=self.is_training)
             mean = dense(inputs=h, units=self.z_dim, kernel_initializer=fresh_glorot_initializer())
@@ -106,11 +118,23 @@ class VAEArith:
         """
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
             h = dense(inputs=self.z_mean, units=800, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
-            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
+            h = batch_normalization(
+                reduce_axes=True,
+                h=h,
+                axis=1,
+                training=self.is_training,
+                scope="decoder_bn_400",
+            )
             h = tf.nn.leaky_relu(h)
             h = dropout(h, self.dropout_rate, training=self.is_training)
             h = dense(inputs=h, units=800, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
-            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
+            h = batch_normalization(
+                reduce_axes=True,
+                h=h,
+                axis=1,
+                training=self.is_training,
+                scope="decoder_bn_700",
+            )
             h = tf.nn.leaky_relu(h)
             h = dropout(h, self.dropout_rate, training=self.is_training)
             h = dense(inputs=h, units=self.x_dim, kernel_initializer=fresh_glorot_initializer(), use_bias=True)

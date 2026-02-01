@@ -1,7 +1,14 @@
 import logging
 import os
 
-from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense, dropout, get_session_config
+from scgen.tf_compat import (
+    enable_tf1_compatibility,
+    batch_normalization,
+    dense,
+    dropout,
+    get_session_config,
+    fresh_glorot_initializer,
+)
 enable_tf1_compatibility()
 import tensorflow
 from scgen.models.util import shuffle_data, label_encoder, prepare_latent_input
@@ -51,7 +58,6 @@ class CVAE:
         self.y = tensorflow.placeholder(tensorflow.float32, shape=[None, 1], name="labels")
         self.time_step = tensorflow.placeholder(tensorflow.int32)
         self.size = tensorflow.placeholder(tensorflow.int32)
-        self.init_w = tensorflow.keras.initializers.GlorotUniform()
         self._create_network()
         self._loss_function()
         init = tensorflow.global_variables_initializer()
@@ -76,15 +82,15 @@ class CVAE:
         """
         with tensorflow.variable_scope("encoder", reuse=tensorflow.AUTO_REUSE):
             xy = tensorflow.concat([self.x, self.y], axis=1)
-            h = dense(inputs=xy, units=700, kernel_initializer=self.init_w, use_bias=False)
+            h = dense(inputs=xy, units=700, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
             h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = dense(inputs=h, units=400, kernel_initializer=self.init_w, use_bias=False)
+            h = dense(inputs=h, units=400, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
             h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tensorflow.nn.leaky_relu(h)
             h = dropout(h, self.dr_rate, training=self.is_training)
-            mean = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
-            log_var = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            mean = dense(inputs=h, units=self.z_dim, kernel_initializer=fresh_glorot_initializer())
+            log_var = dense(inputs=h, units=self.z_dim, kernel_initializer=fresh_glorot_initializer())
             return mean, log_var
 
     def _decoder(self):
@@ -103,14 +109,14 @@ class CVAE:
         """
         with tensorflow.variable_scope("decoder", reuse=tensorflow.AUTO_REUSE):
             xy = tensorflow.concat([self.z_mean, self.y], axis=1)
-            h = dense(inputs=xy, units=400, kernel_initializer=self.init_w, use_bias=False)
+            h = dense(inputs=xy, units=400, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
             h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = dense(inputs=h, units=700, kernel_initializer=self.init_w, use_bias=False)
+            h = dense(inputs=h, units=700, kernel_initializer=fresh_glorot_initializer(), use_bias=False)
             h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tensorflow.nn.leaky_relu(h)
             h = dropout(h, self.dr_rate, training=self.is_training)
-            h = dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
+            h = dense(inputs=h, units=self.x_dim, kernel_initializer=fresh_glorot_initializer(), use_bias=True)
             h = tensorflow.nn.relu(h)
             return h
 

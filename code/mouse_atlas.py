@@ -1,5 +1,12 @@
 # Enable TensorFlow 1.x compatibility for TensorFlow 2.x
-from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense, dropout, get_session_config
+from scgen.tf_compat import (
+    enable_tf1_compatibility,
+    batch_normalization,
+    dense,
+    dropout,
+    get_session_config,
+    fresh_glorot_initializer,
+)
 enable_tf1_compatibility()
 import tensorflow as tf
 import numpy as np
@@ -42,7 +49,6 @@ data_max_value = np.amax(input_matrix)
 time_step = tf.placeholder(tf.int32)
 size  = tf.placeholder(tf.int32)
 is_training = tf.placeholder(tf.bool)
-init_w =  tf.keras.initializers.GlorotUniform()
 regularizer = tf.keras.regularizers.l2(0.1)
 
 def give_me_latent(data):
@@ -66,18 +72,18 @@ def reconstruct(data,use_data = False):
 
 def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
-        h = dense(inputs=X, units=800, kernel_initializer=init_w,use_bias=False,
+        h = dense(inputs=X, units=800, kernel_initializer=fresh_glorot_initializer(),use_bias=False,
                             kernel_regularizer=regularizer)
         h = batch_normalization(reduce_axes=False, scope="gq_800_1", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h,dr_rate, training= is_training)
-        h = dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dense(inputs=h, units=800, kernel_initializer=fresh_glorot_initializer(), use_bias=False,
                             kernel_regularizer=regularizer)
         h = batch_normalization(reduce_axes=False, scope="gq_800_2", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h,dr_rate, training= is_training)
-        mean =  dense(inputs=h, units=z_dim, kernel_initializer=init_w)
-        variance =  dense(inputs=h, units=z_dim, kernel_initializer=init_w)
+        mean =  dense(inputs=h, units=z_dim, kernel_initializer=fresh_glorot_initializer())
+        variance =  dense(inputs=h, units=z_dim, kernel_initializer=fresh_glorot_initializer())
         return mean, variance
 
 # =============================== P(Z) ======================================
@@ -92,18 +98,18 @@ def sample(n_sample):
 # =============================== P(X|z) ======================================
 def P(z,reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
-        h = dense(inputs=z,units= 800,kernel_initializer=init_w,use_bias=False,
+        h = dense(inputs=z,units= 800,kernel_initializer=fresh_glorot_initializer(),use_bias=False,
                             kernel_regularizer=regularizer)
         h = batch_normalization(reduce_axes=False, scope="gp_800_1", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h,dr_rate, training= is_training)
 
-        h = dense(inputs=h, units=800, kernel_initializer=init_w,use_bias=False,
+        h = dense(inputs=h, units=800, kernel_initializer=fresh_glorot_initializer(),use_bias=False,
                             kernel_regularizer=regularizer)
         h = batch_normalization(reduce_axes=False, scope="gp_800_2", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h,dr_rate, training= is_training)
-        h = dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
+        h = dense(inputs=h, units=X_dim, kernel_initializer=fresh_glorot_initializer(), use_bias=True)
         h = tf.nn.relu(h)
         return h
 mean, variance = Q(X)

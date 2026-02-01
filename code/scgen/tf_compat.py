@@ -253,6 +253,17 @@ def dense(inputs, units, *, use_bias=True, kernel_initializer=None, kernel_regul
     )(inputs)
 
 
+def fresh_glorot_initializer():
+    """
+    Returns a new GlorotUniform initializer instance.
+
+    Creating a fresh instance per layer avoids unintended weight reuse.
+    """
+    import tensorflow as tf
+
+    return tf.keras.initializers.GlorotUniform()
+
+
 def dropout(inputs, rate, training):
     """
     TF1-style dropout wrapper with explicit training gate.

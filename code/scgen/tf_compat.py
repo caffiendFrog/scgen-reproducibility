@@ -311,6 +311,8 @@ def _patch_tf1_symbols(tf):
         tf.losses = tf.compat.v1.losses
     if not hasattr(tf, 'random_normal'):
         tf.random_normal = tf.compat.v1.random_normal
+    if not hasattr(tf, 'trainable_variables'):
+        tf.trainable_variables = tf.compat.v1.trainable_variables
 
     # Optimizers/checkpoints live under compat.v1 in TF2
     if hasattr(tf.compat, 'v1') and hasattr(tf.compat.v1, 'train'):

@@ -5,6 +5,34 @@ from scipy import sparse
 import anndata
 
 
+def _drop_invalid_obsp(adata):
+    """
+    Remove obsp entries that do not match (n_obs, n_obs).
+
+    Some legacy datasets include stale neighbor graphs (e.g., 'distances')
+    that no longer align with the current obs dimension. These entries cause
+    AnnData copy/validation to fail in modern anndata.
+    """
+    if not hasattr(adata, "obsp"):
+        return []
+    try:
+        items = list(adata.obsp.items())
+    except Exception:
+        return []
+    n_obs = adata.n_obs
+    invalid_keys = []
+    for key, value in items:
+        shape = getattr(value, "shape", None)
+        if shape is None or shape != (n_obs, n_obs):
+            invalid_keys.append(key)
+    for key in invalid_keys:
+        try:
+            del adata.obsp[key]
+        except Exception:
+            pass
+    return invalid_keys
+
+
 def to_dense(adata, copy_if_view=True):
     """
     Converts an AnnData object to dense format, handling views and sparse matrices.
@@ -55,6 +83,7 @@ def to_dense(adata, copy_if_view=True):
     # If it's a view and we should copy, do so first
     # This ensures we have an independent object before converting
     if is_view and copy_if_view:
+        _drop_invalid_obsp(adata)
         adata = adata.copy()
     
     # Convert sparse matrix to dense if needed
@@ -63,6 +92,7 @@ def to_dense(adata, copy_if_view=True):
         dense_X = adata.X.toarray()
         # Create new AnnData with dense X, preserving all metadata
         # Use copy() method which handles all attributes properly
+        _drop_invalid_obsp(adata)
         result = adata.copy()
         result.X = dense_X
         return result
@@ -77,6 +107,7 @@ def to_dense(adata, copy_if_view=True):
         try:
             if hasattr(adata.X, 'base') and adata.X.base is not None:
                 # X is a view, create a proper copy
+                _drop_invalid_obsp(adata)
                 result = adata.copy()
                 result.X = np.array(adata.X, copy=True)
                 return result

@@ -133,23 +133,62 @@ def _call_keras_layer(layer_cls, inputs, training=None, **kwargs):
 
 def batch_normalization(scope, feature_dim, h, training):
     """
-    Manual batch normalization workaround for TensorFlow 2.x compatibility.
+    TF1-style batch normalization with moving averages.
 
-    How it works:
-    1. Creates trainable scale (gamma) and offset (beta) variables
-    2. Computes batch mean and variance using tf.nn.moments
-    3. Applies normalization: (x - mean) / sqrt(variance + epsilon) * scale + offset
-
-    This is equivalent to tf.layers.batch_normalization but uses low-level TF1.x APIs
-    that are still available in TF2.x via compat.v1.
+    Behavior overview:
+    - Creates trainable scale (gamma) and offset (beta)
+    - Tracks moving_mean and moving_variance as non-trainable variables
+    - During training, updates moving stats and normalizes with batch stats
+    - During inference, normalizes using moving stats
+    - Registers moving-stat updates in GraphKeys.UPDATE_OPS
     """
     import tensorflow as tf
+
+    # tensorflow vs 1.x defaults
+    epsilon = 1e-3
+    momentum = 0.99
 
     with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
         scale = tf.get_variable("scale", shape=[feature_dim], initializer=tf.ones_initializer())
         offset = tf.get_variable("offset", shape=[feature_dim], initializer=tf.zeros_initializer())
-        batch_mean, batch_var = tf.nn.moments(h, axes=[0])
-        return tf.nn.batch_normalization(h, batch_mean, batch_var, offset, scale, variance_epsilon=1e-5)
+        moving_mean = tf.get_variable(
+            "moving_mean",
+            shape=[feature_dim],
+            initializer=tf.zeros_initializer(),
+            trainable=False
+        )
+        moving_var = tf.get_variable(
+            "moving_variance",
+            shape=[feature_dim],
+            initializer=tf.ones_initializer(),
+            trainable=False
+        )
+
+        def _batch_norm_train():
+            batch_mean, batch_var = tf.nn.moments(h, axes=[0])
+            update_mean = tf.compat.v1.assign_moving_average(
+                moving_mean, batch_mean, decay=momentum, zero_debias=False
+            )
+            update_var = tf.compat.v1.assign_moving_average(
+                moving_var, batch_var, decay=momentum, zero_debias=False
+            )
+            tf.compat.v1.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_mean)
+            tf.compat.v1.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_var)
+            with tf.control_dependencies([update_mean, update_var]):
+                return tf.nn.batch_normalization(
+                    h, batch_mean, batch_var, offset, scale, variance_epsilon=epsilon
+                )
+
+        def _batch_norm_infer():
+            return tf.nn.batch_normalization(
+                h, moving_mean, moving_var, offset, scale, variance_epsilon=epsilon
+            )
+
+        if training is None:
+            return _batch_norm_infer()
+        if isinstance(training, bool):
+            return _batch_norm_train() if training else _batch_norm_infer()
+        return tf.cond(training, _batch_norm_train, _batch_norm_infer)
 
 
 def dense(inputs, units, activation=None, use_bias=True, kernel_initializer=None,

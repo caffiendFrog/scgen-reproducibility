@@ -86,6 +86,15 @@ python ModelTrainer.py all
 
 Then you can run each notebook and reproduce the results.
 
+### Re-running reconstructions
+
+Reconstruction outputs are cached by default. To force regeneration, pass
+`--overwrite` to `ModelTrainer.py`:
+
+```bash
+python ModelTrainer.py all --overwrite
+```
+
 **Note:** The `scgen` module is now available as a single source of truth in `code/scgen`, with a symlink/junction in `Jupyter Notebooks/scgen` for notebook compatibility.
 
 ### Troubleshooting

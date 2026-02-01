@@ -198,3 +198,23 @@ def ensure_dir(dir_path):
     if dir_path and not os.path.exists(dir_path):
         os.makedirs(dir_path, exist_ok=True)
     return dir_path
+
+
+def should_skip_reconstruction(file_path, overwrite=False):
+    """
+    Returns True if the reconstruction output already exists and should be reused.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the reconstruction output file
+    overwrite : bool, optional
+        If True, skip the check and allow regeneration
+    """
+    env_overwrite = os.environ.get("SCGEN_OVERWRITE", "").strip().lower() in ("1", "true", "yes")
+    if overwrite or env_overwrite:
+        return False
+    if file_path and os.path.isfile(file_path):
+        print(f"Reconstruction output already exists, skipping: {file_path}")
+        return True
+    return False

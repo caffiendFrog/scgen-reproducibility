@@ -6,6 +6,7 @@ import sys
 import time
 
 import scgen
+from scgen.file_utils import should_skip_reconstruction
 
 
 conda_prefix = os.environ.get("CONDA_PREFIX") or sys.prefix
@@ -27,6 +28,10 @@ except Exception as e:
 import numpy as np
 from scgen.file_utils import ensure_dir_for_file
 
+output_path = "../data/reconstructed/CVAE_CD4T.h5ad"
+if should_skip_reconstruction(output_path):
+    raise SystemExit(0)
+
 train = sc.read("../data/train_pbmc.h5ad")
 valid = sc.read("../data/valid_pbmc.h5ad")
 train = train[~((train.obs["cell_type"] == "CD4T") & (train.obs["condition"] == "stimulated"))]
@@ -43,4 +48,4 @@ predicted_cells = network.predict(unperturbed_data, fake_labels)
 adata = sc.AnnData(predicted_cells, obs={"condition": ["pred"]*len(fake_labels)})
 adata.var_names = CD4T.var_names
 all_adata = CD4T.concatenate(adata)
-all_adata.write(ensure_dir_for_file("../data/reconstructed/CVAE_CD4T.h5ad"))
+all_adata.write(ensure_dir_for_file(output_path))

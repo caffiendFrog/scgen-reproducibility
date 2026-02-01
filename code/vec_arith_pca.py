@@ -6,7 +6,7 @@ import scanpy as sc
 import scgen
 import scipy.sparse as sparse
 from sklearn.decomposition import PCA
-from scgen.file_utils import ensure_dir_for_file, get_dense_X, to_dense
+from scgen.file_utils import ensure_dir_for_file, get_dense_X, should_skip_reconstruction, to_dense
 
 
 # =============================== downloading training and validation files ====================================
@@ -30,6 +30,9 @@ def predict(pca, cd_x, hfd_x, cd_y, p_type="unbiased"):
 
 
 def reconstruct():
+    output_path = "../data/reconstructed/PCAVecArithm/PCA_pbmc.h5ad"
+    if should_skip_reconstruction(output_path):
+        return
     train_path = "../data/train_pbmc.h5ad"
     data = sc.read(train_path)
     ctrl_key = "control"
@@ -70,10 +73,16 @@ def reconstruct():
         else:
             all_data = all_data.concatenate(all_Data)
         print(cell_type)
-    sc.write(ensure_dir_for_file("../data/reconstructed/PCAVecArithm/PCA_pbmc.h5ad"), all_data)
+    sc.write(ensure_dir_for_file(output_path), all_data)
 
 
 def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
+    if p_type == "unbiased":
+        output_path = "../data/reconstructed/PCAVecArithm/PCA_CD4T.h5ad"
+    else:
+        output_path = "../data/reconstructed/PCAVecArithm/PCA_CD4T_biased.h5ad"
+    if should_skip_reconstruction(output_path):
+        return
     train_path = f"../data/train_{data_name}.h5ad"
     if data_name == "pbmc":
         ctrl_key = "control"
@@ -119,10 +128,7 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     all_Data.obs["condition"] = ["ctrl"] * len(adata_list[1].X) + ["real_stim"] * len(adata_list[2].X) + \
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = adata_list[3].var_names
-    if p_type == "unbiased":
-        sc.write(ensure_dir_for_file(f"../data/reconstructed/PCAVecArithm/PCA_CD4T.h5ad"), all_Data)
-    else:
-        sc.write(ensure_dir_for_file(f"../data/reconstructed/PCAVecArithm/PCA_CD4T_biased.h5ad"), all_Data)
+    sc.write(ensure_dir_for_file(output_path), all_Data)
 
 
 if __name__ == "__main__":

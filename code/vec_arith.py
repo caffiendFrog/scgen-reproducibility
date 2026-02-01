@@ -3,13 +3,19 @@
 import numpy as np
 import scanpy as sc
 import scgen
-from scgen.file_utils import ensure_dir_for_file, get_dense_X, to_dense
+from scgen.file_utils import ensure_dir_for_file, get_dense_X, should_skip_reconstruction, to_dense
 
 
 # =============================== downloading training and validation files ====================================
 # we do not use the validation data to apply vectroe arithmetics in gene expression space
 
 def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
+    if p_type == "unbiased":
+        output_path = "../data/reconstructed/VecArithm/VecArithm_CD4T.h5ad"
+    else:
+        output_path = "../data/reconstructed/VecArithm/VecArithm_CD4T_biased.h5ad"
+    if should_skip_reconstruction(output_path):
+        return
     train_path = f"../data/train_{data_name}.h5ad"
     if data_name == "pbmc":
         ctrl_key = "control"
@@ -50,10 +56,7 @@ def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     all_Data.obs["condition"] = ["ctrl"] * ctrl_cell.shape[0] + ["real_stim"] * stim_cell.shape[0] + \
                                 ["pred_stim"] * len(predicted_cells)
     all_Data.var_names = ctrl_cell.var_names
-    if p_type == "unbiased":
-        sc.write(ensure_dir_for_file(f"../data/reconstructed/VecArithm/VecArithm_CD4T.h5ad"), all_Data)
-    else:
-        sc.write(ensure_dir_for_file(f"../data/reconstructed/VecArithm/VecArithm_CD4T_biased.h5ad"), all_Data)
+    sc.write(ensure_dir_for_file(output_path), all_Data)
 
 
 def predict(cd_x, hfd_x, cd_y, p_type="unbiased"):

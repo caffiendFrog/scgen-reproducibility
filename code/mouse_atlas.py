@@ -7,7 +7,8 @@ import anndata
 from random import  shuffle
 import wget
 import os
-from scgen.file_utils import ensure_dir_for_file
+import sys
+from scgen.file_utils import ensure_dir_for_file, should_skip_reconstruction
 from scgen.constants import DEFAULT_BATCH_SIZE
 
 
@@ -223,6 +224,9 @@ def vector_batch_removal(inp, batch_key1, batch_key2):
 
 
 if __name__ == "__main__":
+    output_path = "../data/reconstructed/scGen/mouse_atlas.h5ad"
+    if should_skip_reconstruction(output_path):
+        sys.exit(0)
     # sc.pp.pca(data, svd_solver="arpack")
     # sc.pp.neighbors(data, n_neighbors=25)
     # sc.tl.umap(data)
@@ -236,7 +240,7 @@ if __name__ == "__main__":
     train(300)
     # restore()
     corrected_mouse_atlas, latent_batch = vector_batch_removal(data, "Dataset", "Organ groups")
-    corrected_mouse_atlas.write(ensure_dir_for_file("../data/reconstructed/scGen/mouse_atlas.h5ad"))
+    corrected_mouse_atlas.write(ensure_dir_for_file(output_path))
     # sc.pp.pca(corrected_mouse_atlas, svd_solver="arpack")
     # sc.pp.neighbors(corrected_mouse_atlas, n_neighbors=25)
     # sc.tl.umap(corrected_mouse_atlas)

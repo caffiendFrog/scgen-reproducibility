@@ -1,3 +1,4 @@
+import argparse
 import os
 import subprocess
 import sys
@@ -8,8 +9,13 @@ DATA_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "data"))
 RECON_SCGEN_DIR = os.path.join(DATA_DIR, "reconstructed", "scGen")
 
 
-def run_command(command):
-    return subprocess.call(command, shell=True, cwd=SCRIPT_DIR)
+def run_command(command, overwrite=False):
+    env = os.environ.copy()
+    if overwrite:
+        env["SCGEN_OVERWRITE"] = "1"
+    else:
+        env.pop("SCGEN_OVERWRITE", None)
+    return subprocess.call(command, shell=True, cwd=SCRIPT_DIR, env=env)
 
 
 def missing_paths(paths):
@@ -45,7 +51,7 @@ def ensure_inputs_exist():
             )
 
 
-def ensure_batch_correction_outputs():
+def ensure_batch_correction_outputs(overwrite=False):
     required_outputs = [
         os.path.join(RECON_SCGEN_DIR, "pancreas.h5ad"),
         # os.path.join(RECON_SCGEN_DIR, "mouse_atlas.h5ad"),
@@ -55,7 +61,7 @@ def ensure_batch_correction_outputs():
         return
     if os.path.join(RECON_SCGEN_DIR, "pancreas.h5ad") in missing:
         print("Generating scGen batch-corrected pancreas dataset...")
-        run_command("python ./pancreas.py")
+        run_command("python ./pancreas.py", overwrite=overwrite)
     # if os.path.join(RECON_SCGEN_DIR, "mouse_atlas.h5ad") in missing:
     #     print("Generating scGen batch-corrected mouse atlas dataset...")
     #     run_command("python ./mouse_atlas.py")
@@ -69,40 +75,51 @@ def ensure_batch_correction_outputs():
 
 
 def main():
-    if len(sys.argv) == 1:
-        model_to_train = "all"
-    else:
-        model_to_train = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Train scGen reproducibility models.")
+    parser.add_argument(
+        "model",
+        nargs="?",
+        default="all",
+        help="Model to train: all, PCA, VecArithm, STGAN, CVAE, scGen",
+    )
+    parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="Regenerate reconstructed outputs even if they already exist.",
+    )
+    args = parser.parse_args()
+    model_to_train = args.model
+    overwrite = args.overwrite
     if model_to_train == "all":
         ensure_inputs_exist()
         command = "python ./vec_arith_pca.py"
-        run_command(command)
+        run_command(command, overwrite=overwrite)
 
         command = "python ./vec_arith.py"
-        run_command(command)
+        run_command(command, overwrite=overwrite)
 
         command = "python ./st_gan.py train"
-        run_command(command)
+        run_command(command, overwrite=overwrite)
 
         command = "python ./train_cvae.py"
-        run_command(command)
+        run_command(command, overwrite=overwrite)
 
         command = "python ./train_scGen.py"
-        run_command(command)
-        ensure_batch_correction_outputs()
+        run_command(command, overwrite=overwrite)
+        ensure_batch_correction_outputs(overwrite=overwrite)
 
     elif model_to_train == "PCA":
         command = "python ./vec_arith_pca.py"
-        run_command(command)
+        run_command(command, overwrite=overwrite)
     elif model_to_train == "VecArithm":
         command = "python ./vec_arith.py"
-        run_command(command)
+        run_command(command, overwrite=overwrite)
     elif model_to_train == "STGAN":
         command = "python ./st_gan.py train"
-        run_command(command)
+        run_command(command, overwrite=overwrite)
     elif model_to_train == "CVAE":
         command = "python ./train_cvae.py"
-        run_command(command)
+        run_command(command, overwrite=overwrite)
     elif model_to_train == "scGen":
         command = "python ./train_scGen.py"
         run_command(command)

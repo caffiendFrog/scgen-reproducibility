@@ -7,7 +7,7 @@ from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense
 enable_tf1_compatibility()
 import tensorflow as tf
 from data_reader import data_reader
-from scgen.file_utils import ensure_dir_for_file, get_dense_X
+from scgen.file_utils import ensure_dir_for_file, get_dense_X, should_skip_reconstruction
 from scgen.constants import STGAN_BATCH_SIZE
 
 # =============================== downloading training and validation files ====================================
@@ -271,6 +271,9 @@ if __name__ == "__main__":
     sc.settings.figdir = path_to_save
     sc.settings.writedir = "../data"
     print(sys.argv[1])
+    output_path = "../data/reconstructed/CGAN/cgan_cd4t.h5ad"
+    if sys.argv[1] == "train" and should_skip_reconstruction(output_path):
+        sys.exit(0)
     if sys.argv[1] == "train":
         train(1000, initial_run=True)
     else:
@@ -287,7 +290,7 @@ if __name__ == "__main__":
         all_Data.obs["condition"] = ["ctrl"] * len(ctrl_X) + ["real_stim"] * len(stim_X) + \
                                     ["pred_stim"] * len(predicted_cells)
         all_Data.var_names = adata_list[3].var_names
-        all_Data.write(ensure_dir_for_file("../data/reconstructed/CGAN/cgan_cd4t.h5ad"))
+        all_Data.write(ensure_dir_for_file(output_path))
     if sys.argv[1] == "latent":
         low_dim = low_embed_stim(train_real.X)
         dt = sc.AnnData(low_dim)

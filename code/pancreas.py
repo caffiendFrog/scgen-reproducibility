@@ -1,4 +1,5 @@
 import os
+import sys
 from random import shuffle
 
 import numpy as np
@@ -9,7 +10,7 @@ from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense
 enable_tf1_compatibility()
 import tensorflow as tf
 import wget
-from scgen.file_utils import ensure_dir_for_file
+from scgen.file_utils import ensure_dir_for_file, should_skip_reconstruction
 from scgen.constants import DEFAULT_BATCH_SIZE
 
 train_path = "../data/pancreas.h5ad"
@@ -215,6 +216,9 @@ def restore():
 
 
 if __name__ == "__main__":
+    output_path = "../data/reconstructed/scGen/pancreas.h5ad"
+    if should_skip_reconstruction(output_path):
+        sys.exit(0)
     data.obs["cell_type"] = data.obs["celltype"]
     # data.obs["study"] = data.obs["sample"]
     # sc.pl.umap(data, color=["cell_type"], save="pancreas_cell_before.pdf", show=False)
@@ -231,7 +235,7 @@ if __name__ == "__main__":
     all_data.obs["celltype"] = "others"
     for cell_type in top_cell_types:
         all_data.obs.loc[all_data.obs["cell_type"] == cell_type, "celltype"] = cell_type
-    all_data.write(ensure_dir_for_file("../data/reconstructed/scGen/pancreas.h5ad"))
+    all_data.write(ensure_dir_for_file(output_path))
     print("scGen batch corrected pancreas has been saved in ../data/reconstructed/scGen/pancreas.h5ad")
     # sc.pp.neighbors(all_data)
     # sc.tl.umap(all_data)

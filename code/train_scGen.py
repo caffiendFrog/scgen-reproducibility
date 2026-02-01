@@ -1,6 +1,7 @@
 import anndata
 import scanpy as sc
 import scgen
+from scgen.file_utils import should_skip_reconstruction
 from scipy import sparse
 from scgen.constants import DEFAULT_BATCH_SIZE
 
@@ -57,6 +58,9 @@ def test_train_whole_data_one_celltype_out(data_name="pbmc",
 
 
 def reconstruct_whole_data(data_name="pbmc", condition_key="condition"):
+    output_path = f"../data/reconstructed/scGen/{data_name}.h5ad"
+    if should_skip_reconstruction(output_path):
+        return
     if data_name == "pbmc":
         stim_key = "stimulated"
         ctrl_key = "control"
@@ -124,7 +128,7 @@ def reconstruct_whole_data(data_name="pbmc", condition_key="condition"):
 
         print(f"Finish Reconstructing for {cell_type}")
         network.sess.close()
-    all_data.write_h5ad(f"../data/reconstructed/scGen/{data_name}.h5ad")
+    all_data.write_h5ad(output_path)
 
 
 def test_train_whole_data_some_celltypes_out(data_name="pbmc",

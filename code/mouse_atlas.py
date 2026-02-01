@@ -67,12 +67,12 @@ def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
         h = dense(inputs=X, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization("gp_800_1", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h,dr_rate, training= is_training)
         h = dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization("gp_800_2", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h,dr_rate, training= is_training)
         mean =  dense(inputs=h, units=z_dim, kernel_initializer=init_w)
@@ -93,13 +93,13 @@ def P(z,reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
         h = dense(inputs=z,units= 800,kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization("gp_800_1", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h,dr_rate, training= is_training)
 
         h = dense(inputs=h, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization("gp_800_2", 800, h, is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h,dr_rate, training= is_training)
         h = dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)

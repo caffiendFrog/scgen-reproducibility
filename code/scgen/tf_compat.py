@@ -131,78 +131,25 @@ def _call_keras_layer(layer_cls, inputs, training=None, **kwargs):
     return layer(inputs, training=training)
 
 
-def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3,
-                        center=True, scale=True, name=None):
+def batch_normalization(scope, feature_dim, h, training):
     """
-    Compatibility wrapper for tf.layers.batch_normalization.
-    
-    This function provides a drop-in replacement for tf.layers.batch_normalization
-    using the canonical TensorFlow 2.x compatibility API: tf.compat.v1.layers.batch_normalization.
-    
-    This is the official, recommended approach for maintaining backward compatibility
-    with TensorFlow 1.x code in TensorFlow 2.x environments.
-    
-    Parameters
-    ----------
-    inputs : Tensor
-        Input tensor to normalize
-    axis : int, optional
-        Integer, the axis that should be normalized (typically the features axis).
-        Defaults to -1 (last axis).
-    training : bool or Tensor
-        Either a Python boolean or a TensorFlow boolean scalar tensor indicating
-        whether the layer should behave in training mode or in inference mode.
-    epsilon : float, optional
-        Small float added to variance to avoid dividing by zero. Defaults to 1e-3.
-    center : bool, optional
-        If True, add offset of beta to normalized tensor. Defaults to True.
-    scale : bool, optional
-        If True, multiply by gamma. Defaults to True.
-    name : str, optional
-        Optional name for the operation. If None, infers from variable scope.
-    
-    Returns
-    -------
-    Tensor
-        Normalized tensor with same shape as inputs
-    
-    Notes
-    -----
-    This wrapper uses tf.compat.v1.layers.batch_normalization, which is the canonical
-    replacement for tf.layers.batch_normalization in TensorFlow 2.x. It maintains
-    full compatibility with the original API, including:
-    - Training/inference mode switching via the training parameter
-    - Automatic moving average management for inference
-    - Proper variable scope handling
-    - Update operations added to tf.GraphKeys.UPDATE_OPS collection
-    
-    The function automatically infers the variable scope from context, ensuring
-    proper variable reuse and naming consistent with tf.layers.batch_normalization.
+    Manual batch normalization workaround for TensorFlow 2.x compatibility.
+
+    How it works:
+    1. Creates trainable scale (gamma) and offset (beta) variables
+    2. Computes batch mean and variance using tf.nn.moments
+    3. Applies normalization: (x - mean) / sqrt(variance + epsilon) * scale + offset
+
+    This is equivalent to tf.layers.batch_normalization but uses low-level TF1.x APIs
+    that are still available in TF2.x via compat.v1.
     """
     import tensorflow as tf
-    
-    legacy = _get_legacy_layer(tf, 'batch_normalization')
-    if legacy is not None:
-        return legacy(
-            inputs=inputs,
-            axis=axis,
-            training=training,
-            epsilon=epsilon,
-            center=center,
-            scale=scale,
-            name=name
-        )
-    # Keras 3 removes tf.compat.v1.layers.*; use tf.keras.layers instead.
-    return _call_keras_layer(
-        tf.keras.layers.BatchNormalization,
-        inputs,
-        training=training,
-        axis=axis,
-        epsilon=epsilon,
-        center=center,
-        scale=scale,
-        name=name
-    )
+
+    with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+        scale = tf.get_variable("scale", shape=[feature_dim], initializer=tf.ones_initializer())
+        offset = tf.get_variable("offset", shape=[feature_dim], initializer=tf.zeros_initializer())
+        batch_mean, batch_var = tf.nn.moments(h, axes=[0])
+        return tf.nn.batch_normalization(h, batch_mean, batch_var, offset, scale, variance_epsilon=1e-5)
 
 
 def dense(inputs, units, activation=None, use_bias=True, kernel_initializer=None,

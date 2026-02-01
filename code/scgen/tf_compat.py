@@ -191,46 +191,18 @@ def batch_normalization(scope, feature_dim, h, training):
         return tf.cond(training, _batch_norm_train, _batch_norm_infer)
 
 
-def dense(inputs, units, activation=None, use_bias=True, kernel_initializer=None,
-          bias_initializer=None, kernel_regularizer=None, bias_regularizer=None,
-          activity_regularizer=None, kernel_constraint=None, bias_constraint=None,
-          name=None, **kwargs):
+def dense(tensors, units, *, use_bias=True, kernel_initializer=None, kernel_regularizer=None):
     """
-    Compatibility wrapper for tf.layers.dense with Keras 3 fallback.
+    Compatibility wrapper for tf.layers.dense for Keras 3.
     """
     import tensorflow as tf
-    legacy = _get_legacy_layer(tf, 'dense')
-    if legacy is not None:
-        return legacy(
-            inputs=inputs,
-            units=units,
-            activation=activation,
-            use_bias=use_bias,
-            kernel_initializer=kernel_initializer,
-            bias_initializer=bias_initializer,
-            kernel_regularizer=kernel_regularizer,
-            bias_regularizer=bias_regularizer,
-            activity_regularizer=activity_regularizer,
-            kernel_constraint=kernel_constraint,
-            bias_constraint=bias_constraint,
-            name=name,
-            **kwargs
-        )
-    return _call_keras_layer(
-        tf.keras.layers.Dense,
-        inputs,
+
+    return tf.keras.layers.Dense(
         units=units,
-        activation=activation,
         use_bias=use_bias,
         kernel_initializer=kernel_initializer,
-        bias_initializer=bias_initializer,
         kernel_regularizer=kernel_regularizer,
-        bias_regularizer=bias_regularizer,
-        activity_regularizer=activity_regularizer,
-        kernel_constraint=kernel_constraint,
-        bias_constraint=bias_constraint,
-        name=name
-    )
+    )(tensors)
 
 
 def dropout(inputs, rate, training=False, noise_shape=None, seed=None, name=None):

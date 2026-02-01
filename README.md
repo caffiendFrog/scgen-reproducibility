@@ -90,6 +90,38 @@ Then you can run each notebook and reproduce the results.
 
 ### Troubleshooting
 
+- **AWS GPU setup (EC2/SageMaker)**: TensorFlow will only use GPU if the host has an NVIDIA driver and the CUDA runtime libraries are available to the process.
+  1. **Verify GPU + driver** (host-level):
+     ```bash
+     nvidia-smi
+     ```
+     If this fails, install the AWS-provided NVIDIA driver for your instance type (Deep Learning AMI or the SageMaker GPU base images already include it).
+  2. **Ensure CUDA runtime libs are in your env** (this repo already pins compatible versions):
+     ```bash
+     conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1
+     export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
+     ```
+     To make the `LD_LIBRARY_PATH` change permanent for this env:
+     ```bash
+     mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+     printf 'export LD_LIBRARY_PATH="%s/lib:${LD_LIBRARY_PATH}"\n' "$CONDA_PREFIX" \
+       > $CONDA_PREFIX/etc/conda/activate.d/ld_library_path.sh
+     ```
+     **After adding this hook, deactivate and reactivate the env** (or open a new shell) so it takes effect:
+     ```bash
+     conda deactivate
+     conda activate scgen-repro-env
+     ```
+  3. **(Optional) TensorRT**: Only needed for TF-TRT optimizations. If you want to remove TensorRT warnings:
+     ```bash
+     conda install -c conda-forge tensorrt
+     ```
+  4. **Verify TensorFlow sees the GPU**:
+     ```bash
+     python -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+     ```
+     If the list is empty, the driver or CUDA libs are still missing.
+
 - **`get_version` import error**: If you encounter an error importing `get_version` when using `scgen`, you may need to install it separately or modify `code/scgen/__init__.py` to handle versioning differently. This does not affect the analysis functionality.
 - **Windows symlink issues**: If symbolic link creation fails on Windows, the script automatically falls back to a directory junction, which works without special privileges.
 - **Linux/SageMaker `CXXABI_1.3.15` error**: This means the system `libstdc++.so.6` is older than what `matplotlib` (via `scanpy`) was built against. Ensure the environment provides a newer `libstdc++` and that it is picked first:

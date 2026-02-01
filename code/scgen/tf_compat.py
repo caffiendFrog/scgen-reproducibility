@@ -291,6 +291,8 @@ def _patch_tf1_symbols(tf):
         tf.global_variables_initializer = tf.compat.v1.global_variables_initializer
     if not hasattr(tf, 'variable_scope'):
         tf.variable_scope = tf.compat.v1.variable_scope
+    if not hasattr(tf, 'get_variable'):
+        tf.get_variable = tf.compat.v1.get_variable
     if not hasattr(tf, 'AUTO_REUSE'):
         tf.AUTO_REUSE = tf.compat.v1.AUTO_REUSE
     if not hasattr(tf, 'layers'):

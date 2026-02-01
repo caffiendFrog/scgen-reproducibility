@@ -114,23 +114,6 @@ def get_session_config():
     return config
 
 
-def _get_legacy_layer(tf, layer_name):
-    if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
-        v1_layers = getattr(tf.compat.v1, 'layers', None)
-        if v1_layers is not None and hasattr(v1_layers, layer_name):
-            return getattr(v1_layers, layer_name)
-    if hasattr(tf, 'layers') and hasattr(tf.layers, layer_name):
-        return getattr(tf.layers, layer_name)
-    return None
-
-
-def _call_keras_layer(layer_cls, inputs, training=None, **kwargs):
-    layer = layer_cls(**kwargs)
-    if training is None:
-        return layer(inputs)
-    return layer(inputs, training=training)
-
-
 def batch_normalization(scope, feature_dim, h, training):
     """
     TF1-style batch normalization with moving averages.

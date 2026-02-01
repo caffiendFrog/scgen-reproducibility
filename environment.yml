@@ -8,6 +8,8 @@ dependencies:
   - scipy
   - pandas
   - matplotlib
+  - libstdcxx-ng
+  - libgcc-ng
   - scikit-learn
   - jupyter
   - ipykernel

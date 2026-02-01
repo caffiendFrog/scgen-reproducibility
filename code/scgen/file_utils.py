@@ -15,17 +15,18 @@ def _drop_invalid_obsp(adata):
     """
     # Avoid `hasattr(adata, "obsp")` because AnnData's descriptor can raise
     # during access if obsp entries are invalid. We want to handle that case.
+    target = getattr(adata, "_parent", None) or adata
     try:
-        obsp = adata.obsp
+        obsp = target.obsp
         items = list(obsp.items())
     except Exception:
         # Fall back to the private store to remove invalid entries without
         # triggering validation in the public accessor.
-        obsp = getattr(adata, "_obsp", None)
+        obsp = getattr(target, "_obsp", None)
         if not hasattr(obsp, "items"):
             return []
         items = list(obsp.items())
-    n_obs = adata.n_obs
+    n_obs = target.n_obs
     invalid_keys = []
     for key, value in items:
         shape = getattr(value, "shape", None)
@@ -33,13 +34,41 @@ def _drop_invalid_obsp(adata):
             invalid_keys.append(key)
     for key in invalid_keys:
         try:
-            del adata.obsp[key]
+            del target._obsp[key]
+            continue
         except Exception:
-            try:
-                del adata._obsp[key]
-            except Exception:
-                pass
+            pass
+        try:
+            del target.obsp[key]
+        except Exception:
+            pass
     return invalid_keys
+
+
+def _is_view(adata):
+    try:
+        if hasattr(adata, "is_view"):
+            return adata.is_view
+        if hasattr(adata, "_parent"):
+            return adata._parent is not None
+    except (AttributeError, RuntimeError):
+        return False
+    return False
+
+
+def _dense_array_from_X(X, *, copy_if_view=True, is_view=False):
+    if sparse.issparse(X):
+        return X.toarray()
+    if copy_if_view and is_view:
+        return np.array(X, copy=True)
+    try:
+        if hasattr(X, "base") and X.base is not None:
+            return np.array(X, copy=True)
+    except Exception:
+        return np.array(X, copy=True)
+    if isinstance(X, np.ndarray):
+        return X
+    return np.array(X, copy=True)
 
 
 def to_dense(adata, copy_if_view=True):
@@ -76,18 +105,7 @@ def to_dense(adata, copy_if_view=True):
     >>> # Convert to dense, handling the view properly
     >>> dense_adata = scgen.file_utils.to_dense(view)
     """
-    # Check if adata is a view
-    is_view = False
-    try:
-        # Modern anndata (>=0.7.0) has is_view attribute
-        if hasattr(adata, 'is_view'):
-            is_view = adata.is_view
-        # Check for parent reference (alternative way to detect views)
-        elif hasattr(adata, '_parent'):
-            is_view = adata._parent is not None
-    except (AttributeError, RuntimeError):
-        # If we can't determine, assume it's not a view
-        is_view = False
+    is_view = _is_view(adata)
     
     # If it's a view and we should copy, do so first
     # This ensures we have an independent object before converting
@@ -97,8 +115,7 @@ def to_dense(adata, copy_if_view=True):
     
     # Convert sparse matrix to dense if needed
     if sparse.issparse(adata.X):
-        # Convert sparse to dense
-        dense_X = adata.X.toarray()
+        dense_X = _dense_array_from_X(adata.X, copy_if_view=copy_if_view, is_view=is_view)
         # Create new AnnData with dense X, preserving all metadata
         # Use copy() method which handles all attributes properly
         _drop_invalid_obsp(adata)
@@ -113,15 +130,12 @@ def to_dense(adata, copy_if_view=True):
             return adata
         
         # Check if X itself is a view (e.g., from slicing a numpy array)
-        try:
-            if hasattr(adata.X, 'base') and adata.X.base is not None:
-                # X is a view, create a proper copy
-                _drop_invalid_obsp(adata)
-                result = adata.copy()
-                result.X = np.array(adata.X, copy=True)
-                return result
-        except (AttributeError, ValueError, TypeError):
-            pass
+        dense_X = _dense_array_from_X(adata.X, copy_if_view=copy_if_view, is_view=is_view)
+        if dense_X is not adata.X:
+            _drop_invalid_obsp(adata)
+            result = adata.copy()
+            result.X = dense_X
+            return result
         
         # If we get here, X is already dense and not a view
         # Return as-is (it's safe)
@@ -155,8 +169,11 @@ def get_dense_X(adata, copy_if_view=True):
     >>> view = adata[adata.obs["cell_type"] == "CD4T"]
     >>> dense_X = scgen.file_utils.get_dense_X(view)
     """
-    dense_adata = to_dense(adata, copy_if_view=copy_if_view)
-    return dense_adata.X
+    return _dense_array_from_X(
+        adata.X,
+        copy_if_view=copy_if_view,
+        is_view=_is_view(adata),
+    )
 
 
 def ensure_dir_for_file(file_path):

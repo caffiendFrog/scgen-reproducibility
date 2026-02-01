@@ -141,3 +141,5 @@ python ModelTrainer.py all --overwrite
   Then re-run `python -c "import matplotlib; import scanpy"`.
 
 All datasets are available in this drive [directory](https://drive.google.com/drive/folders/1v3qySFECxtqWLRhRTSbfQDFqdUCAXql3).
+`MouseAtlas.subset.h5ad` is now hosted as a Google Drive file and is downloaded from
+https://drive.google.com/file/d/1IiLFYEs4a8OS2nqT4FSk5BsB3UO3UHPZ/view?usp=drive_link.

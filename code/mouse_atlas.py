@@ -5,9 +5,9 @@ import tensorflow as tf
 import numpy as np
 import anndata
 from random import  shuffle
-import wget
 import os
 import sys
+from download_utils import download_file
 from scgen.file_utils import ensure_dir_for_file, should_skip_reconstruction
 from scgen.constants import DEFAULT_BATCH_SIZE
 
@@ -17,8 +17,8 @@ train_path = "../data/MouseAtlas.subset.h5ad"
 if os.path.isfile(train_path):
     data = anndata.read_h5ad(train_path)
 else:
-    train_url = "https://www.dropbox.com/s/zkss8ds1pi0384p/MouseAtlas.subset.h5ad?dl=1"
-    t_dl = wget.download(train_url, train_path)
+    train_url = "https://drive.google.com/file/d/1IiLFYEs4a8OS2nqT4FSk5BsB3UO3UHPZ/view?usp=drive_link"
+    download_file(train_url, train_path)
     data = anndata.read_h5ad(train_path)
 
 

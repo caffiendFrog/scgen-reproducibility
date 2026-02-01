@@ -1,6 +1,6 @@
 import os
 
-import wget
+from download_utils import download_file
 
 url_dict = {
     "train_pbmc": "https://www.dropbox.com/s/wk5zewf2g1oat69/train_pbmc.h5ad?dl=1",
@@ -26,7 +26,7 @@ url_dict = {
     "mnn": "https://www.dropbox.com/s/n4vl10h7zw7m6tl/mnn.h5ad?dl=1",
     "scanorama": "https://www.dropbox.com/s/j8fti1txfa57dvm/scanorama.h5ad?dl=1",
 
-    "MouseAtlas.subset": "https://www.dropbox.com/s/zkss8ds1pi0384p/MouseAtlas.subset.h5ad?dl=1"
+    "MouseAtlas.subset": "https://drive.google.com/file/d/1IiLFYEs4a8OS2nqT4FSk5BsB3UO3UHPZ/view?usp=drive_link"
 
 }
 
@@ -41,15 +41,15 @@ def download_data(data_name, key=None):
         valid_url = url_dict[f"valid_{data_name}"]
 
         if not os.path.exists(train_path):
-            wget.download(train_url, train_path)
+            download_file(train_url, train_path)
         if not os.path.exists(valid_path):
-            wget.download(valid_url, valid_path)
+            download_file(valid_url, valid_path)
     else:
         data_path = os.path.join(data_path, f"{key}.h5ad")
         data_url = url_dict[key]
 
         if not os.path.exists(data_path):
-            wget.download(data_url, data_path)
+            download_file(data_url, data_path)
     print(f"{data_name} data has been downloaded and saved in {data_path}")
 
 

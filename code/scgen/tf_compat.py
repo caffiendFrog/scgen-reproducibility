@@ -114,7 +114,15 @@ def get_session_config():
     return config
 
 
-def batch_normalization(scope, feature_dim, h, training):
+def batch_normalization(
+    *,
+    reduce_axes,
+    axis=None,
+    h=None,
+    training=None,
+    feature_dim=None,
+    scope=None,
+):
     """
     TF1-style batch normalization with moving averages.
 
@@ -124,6 +132,12 @@ def batch_normalization(scope, feature_dim, h, training):
     - During training, updates moving stats and normalizes with batch stats
     - During inference, normalizes using moving stats
     - Registers moving-stat updates in GraphKeys.UPDATE_OPS
+
+    Calling conventions:
+    - reduce_axes=True: batch_normalization(h=..., axis=..., training=...)
+    - reduce_axes=False: batch_normalization(
+        feature_dim=..., h=..., scope=..., training=...
+      )
     """
     import tensorflow as tf
 
@@ -131,7 +145,52 @@ def batch_normalization(scope, feature_dim, h, training):
     epsilon = 1e-3
     momentum = 0.99
 
-    with tf.variable_scope(scope, reuse=tf.AUTO_REUSE):
+    if h is None:
+        raise ValueError("batch_normalization requires h.")
+
+    if reduce_axes:
+        if axis is None:
+            raise ValueError("batch_normalization requires axis when reduce_axes is True.")
+    else:
+        if feature_dim is None:
+            raise ValueError(
+                "batch_normalization requires feature_dim when reduce_axes is False."
+            )
+        if scope is None:
+            raise ValueError("batch_normalization requires scope when reduce_axes is False.")
+
+    if feature_dim is None:
+        if axis is None:
+            raise ValueError(
+                "batch_normalization requires axis when feature_dim is not provided."
+            )
+        h_shape = h.get_shape().as_list()
+        axis_index = axis if axis >= 0 else (len(h_shape) + axis)
+        if axis_index < 0 or axis_index >= len(h_shape):
+            raise ValueError(f"batch_normalization axis {axis} is out of bounds.")
+        feature_dim = h_shape[axis_index]
+        if feature_dim is None:
+            raise ValueError(
+                "batch_normalization requires a static feature dimension to create variables."
+            )
+
+    if axis is None or not reduce_axes:
+        reduce_axes_list = [0]
+    else:
+        h_rank = h.get_shape().ndims
+        if h_rank is not None:
+            axis_index = axis if axis >= 0 else (h_rank + axis)
+            reduce_axes_list = [i for i in range(h_rank) if i != axis_index]
+        else:
+            axis_tensor = tf.convert_to_tensor(axis, dtype=tf.int32)
+            rank = tf.rank(h)
+            axis_tensor = tf.math.floormod(axis_tensor, rank)
+            all_axes = tf.range(rank)
+            mask = tf.not_equal(all_axes, axis_tensor)
+            reduce_axes_list = tf.boolean_mask(all_axes, mask)
+
+    scope_name = scope or "batch_normalization"
+    with tf.variable_scope(scope_name, reuse=tf.AUTO_REUSE):
         scale = tf.get_variable("scale", shape=[feature_dim], initializer=tf.ones_initializer())
         offset = tf.get_variable("offset", shape=[feature_dim], initializer=tf.zeros_initializer())
         moving_mean = tf.get_variable(
@@ -148,7 +207,7 @@ def batch_normalization(scope, feature_dim, h, training):
         )
 
         def _batch_norm_train():
-            batch_mean, batch_var = tf.nn.moments(h, axes=[0])
+            batch_mean, batch_var = tf.nn.moments(h, axes=reduce_axes_list)
             update_mean = tf.compat.v1.assign_moving_average(
                 moving_mean, batch_mean, decay=momentum, zero_debias=False
             )

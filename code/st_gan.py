@@ -89,11 +89,11 @@ def low_embed_stim(all):
 def discriminator_stimulated(tensor, reuse=False, ):
     with tf.variable_scope("discriminator_s", reuse=reuse):
         h = dense(inputs=tensor, units=700, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("discriminator_s_700", 700, h, is_training)
+        h = batch_normalization(reduce_axes=False, scope="discriminator_s_700", feature_dim=700, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
         h = dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False, )
-        h = batch_normalization("discriminator_s_100", 100, h, is_training)
+        h = batch_normalization(reduce_axes=False, scope="discriminator_s_100", feature_dim=100, h=h, training=is_training)
         disc = tf.nn.leaky_relu(h)
         h = dropout(disc, dr_rate, training=is_training)
 
@@ -106,12 +106,12 @@ def discriminator_stimulated(tensor, reuse=False, ):
 def discriminator_control(tensor, reuse=False, ):
     with tf.variable_scope("discriminator_b", reuse=reuse):
         h = dense(inputs=tensor, units=700, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("discriminator_b_700", 700, h, is_training)
+        h = batch_normalization(reduce_axes=False, scope="discriminator_b_700", feature_dim=700, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False, )
-        h = batch_normalization("discriminator_b_100", 100, h, is_training)
+        h = batch_normalization(reduce_axes=False, scope="discriminator_b_100", feature_dim=100, h=h, training=is_training)
         disc = tf.nn.leaky_relu(h)
         h = dropout(disc, dr_rate, training=is_training)
 
@@ -123,32 +123,32 @@ def discriminator_control(tensor, reuse=False, ):
 def generator_stim_ctrl(image, reuse=False):
     with tf.variable_scope("generator_sb", reuse=reuse):
         h = dense(inputs=image, units=700, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("generator_sb_700", 700, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_sb_700", feature_dim=700, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("generator_sb_100", 100, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_sb_100", feature_dim=100, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=50, kernel_initializer=initializer, use_bias=False, )
-        h = batch_normalization("generator_sb_50", 50, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_sb_50", feature_dim=50, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("generator_sb_100_b", 100, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_sb_100_b", feature_dim=100, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=700, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("generator_sb_700_c", 700, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_sb_700_c", feature_dim=700, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=X_dim, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization(f"generator_sb_{X_dim}", X_dim, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope=f"generator_sb_{X_dim}", feature_dim=X_dim, h=h, training=is_training)
         h = tf.nn.relu(h)
         return h
 
@@ -156,32 +156,32 @@ def generator_stim_ctrl(image, reuse=False):
 def generator_ctrl_stim(image, reuse=False, ):
     with tf.variable_scope("generator_bs", reuse=reuse):
         h = dense(inputs=image, units=700, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("generator_bs_700", 700, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_bs_700", feature_dim=700, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("generator_bs_100", 100, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_bs_100", feature_dim=100, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=50, kernel_initializer=initializer, use_bias=False, )
-        h = batch_normalization("generator_bs_50", 50, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_bs_50", feature_dim=50, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=100, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("generator_bs_100_b", 100, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_bs_100_b", feature_dim=100, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=700, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization("generator_bs_700_c", 700, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="generator_bs_700_c", feature_dim=700, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
         h = dropout(h, dr_rate, training=is_training)
 
         h = dense(inputs=h, units=X_dim, kernel_initializer=initializer, use_bias=False)
-        h = batch_normalization(f"generator_bs_{X_dim}", X_dim, h, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope=f"generator_bs_{X_dim}", feature_dim=X_dim, h=h, training=is_training)
         h = tf.nn.relu(h)
 
         return h

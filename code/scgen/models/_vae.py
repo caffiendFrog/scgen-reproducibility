@@ -73,11 +73,11 @@ class VAEArith:
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
             h = dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = batch_normalization(h, axis=1, training=self.is_training)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
             h = dropout(h, self.dropout_rate, training=self.is_training)
             h = dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = batch_normalization(h, axis=1, training=self.is_training)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
             h = dropout(h, self.dropout_rate, training=self.is_training)
             mean = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
@@ -100,11 +100,11 @@ class VAEArith:
         """
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
             h = dense(inputs=self.z_mean, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = batch_normalization(h, axis=1, training=self.is_training)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
             h = dropout(h, self.dropout_rate, training=self.is_training)
             h = dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = batch_normalization(h, axis=1, training=self.is_training)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
             h = dropout(h, self.dropout_rate, training=self.is_training)
             h = dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)

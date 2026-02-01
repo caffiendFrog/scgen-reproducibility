@@ -174,7 +174,7 @@ def batch_normalization(scope, feature_dim, h, training):
         return tf.cond(training, _batch_norm_train, _batch_norm_infer)
 
 
-def dense(tensors, units, *, use_bias=True, kernel_initializer=None, kernel_regularizer=None):
+def dense(inputs, units, *, use_bias=True, kernel_initializer=None, kernel_regularizer=None):
     """
     TF1-style dense layer wrapper using tf.keras.layers.Dense.
 
@@ -191,10 +191,10 @@ def dense(tensors, units, *, use_bias=True, kernel_initializer=None, kernel_regu
         use_bias=use_bias,
         kernel_initializer=kernel_initializer,
         kernel_regularizer=kernel_regularizer,
-    )(tensors)
+    )(inputs)
 
 
-def dropout(tensors, rate, is_training):
+def dropout(inputs, rate, is_training):
     """
     TF1-style dropout wrapper with explicit training gate.
 
@@ -208,8 +208,8 @@ def dropout(tensors, rate, is_training):
 
     return tf.cond(
         is_training,
-        lambda: tf.nn.dropout(tensors, rate=rate),
-        lambda: tensors,
+        lambda: tf.nn.dropout(inputs, rate=rate),
+        lambda: inputs,
     )
 
 

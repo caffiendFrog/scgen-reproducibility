@@ -193,7 +193,13 @@ def batch_normalization(scope, feature_dim, h, training):
 
 def dense(tensors, units, *, use_bias=True, kernel_initializer=None, kernel_regularizer=None):
     """
-    Compatibility wrapper for tf.layers.dense for Keras 3.
+    TF1-style dense layer wrapper using tf.keras.layers.Dense.
+
+    Behavior overview:
+    - Mirrors tf.layers.dense argument surface used in this codebase
+    - Creates a Keras Dense layer and applies it immediately
+    - Supports optional bias, kernel initializer, and kernel regularizer
+    - Returns the transformed tensor (no variable scope management)
     """
     import tensorflow as tf
 
@@ -207,7 +213,13 @@ def dense(tensors, units, *, use_bias=True, kernel_initializer=None, kernel_regu
 
 def dropout(tensors, rate, is_training):
     """
-    Compatibility wrapper for tf.layers.dropout for Keras 3.
+    TF1-style dropout wrapper with explicit training gate.
+
+    Behavior overview:
+    - Applies tf.nn.dropout only when is_training is True
+    - Leaves inputs unchanged when is_training is False
+    - Uses tf.cond for graph-friendly control flow
+    - Expects is_training to be a boolean or boolean tensor
     """
     import tensorflow as tf
 

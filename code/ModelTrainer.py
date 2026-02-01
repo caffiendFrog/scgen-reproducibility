@@ -29,7 +29,7 @@ def ensure_inputs_exist():
         os.path.join(DATA_DIR, "train_study.h5ad"),
         os.path.join(DATA_DIR, "valid_study.h5ad"),
         os.path.join(DATA_DIR, "pancreas.h5ad"),
-        os.path.join(DATA_DIR, "MouseAtlas.subset.h5ad"),
+        # os.path.join(DATA_DIR, "MouseAtlas.subset.h5ad"),
     ]
     missing = missing_paths(required_inputs)
     if missing:
@@ -48,7 +48,7 @@ def ensure_inputs_exist():
 def ensure_batch_correction_outputs():
     required_outputs = [
         os.path.join(RECON_SCGEN_DIR, "pancreas.h5ad"),
-        os.path.join(RECON_SCGEN_DIR, "mouse_atlas.h5ad"),
+        # os.path.join(RECON_SCGEN_DIR, "mouse_atlas.h5ad"),
     ]
     missing = missing_paths(required_outputs)
     if not missing:
@@ -56,9 +56,9 @@ def ensure_batch_correction_outputs():
     if os.path.join(RECON_SCGEN_DIR, "pancreas.h5ad") in missing:
         print("Generating scGen batch-corrected pancreas dataset...")
         run_command("python ./pancreas.py")
-    if os.path.join(RECON_SCGEN_DIR, "mouse_atlas.h5ad") in missing:
-        print("Generating scGen batch-corrected mouse atlas dataset...")
-        run_command("python ./mouse_atlas.py")
+    # if os.path.join(RECON_SCGEN_DIR, "mouse_atlas.h5ad") in missing:
+    #     print("Generating scGen batch-corrected mouse atlas dataset...")
+    #     run_command("python ./mouse_atlas.py")
     missing_after = missing_paths(required_outputs)
     if missing_after:
         missing_list = "\n".join(f"- {path}" for path in missing_after)

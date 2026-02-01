@@ -209,10 +209,10 @@ def batch_normalization(
         def _batch_norm_train():
             batch_mean, batch_var = tf.nn.moments(h, axes=reduce_axes_list)
             update_mean = tf.compat.v1.assign(
-                moving_mean, batch_mean, decay=momentum, zero_debias=False
+                moving_mean, moving_mean * momentum + batch_mean * (1.0 - momentum)
             )
             update_var = tf.compat.v1.assign(
-                moving_var, batch_var, decay=momentum, zero_debias=False
+                moving_var, moving_var * momentum + batch_var * (1.0 - momentum)
             )
             tf.compat.v1.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_mean)
             tf.compat.v1.add_to_collection(tf.GraphKeys.UPDATE_OPS, update_var)

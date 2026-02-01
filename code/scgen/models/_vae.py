@@ -2,10 +2,14 @@ import logging
 import os
 
 import numpy
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense, dropout, get_session_config
+enable_tf1_compatibility()
 import tensorflow as tf
 from scipy import sparse
 
-from .util import balancer, extractor, shuffle_data
+from scgen.constants import DEFAULT_BATCH_SIZE
+from .util import balancer, extractor, shuffle_data, prepare_latent_input
+from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 log = logging.getLogger(__file__)
 
@@ -45,10 +49,10 @@ class VAEArith:
         self.z = tf.placeholder(tf.float32, shape=[None, self.z_dim], name="latent")
         self.time_step = tf.placeholder(tf.int32)
         self.size = tf.placeholder(tf.int32)
-        self.init_w = tf.contrib.layers.xavier_initializer()
+        self.init_w = tf.keras.initializers.GlorotUniform()
         self._create_network()
         self._loss_function()
-        self.sess = tf.Session()
+        self.sess = tf.Session(config=get_session_config())
         self.saver = tf.train.Saver(max_to_keep=1)
         self.init = tf.global_variables_initializer().run(session=self.sess)
 
@@ -68,16 +72,16 @@ class VAEArith:
                     A dense layer consists of log transformed variances of gaussian distributions of latent space dimensions.
         """
         with tf.variable_scope("encoder", reuse=tf.AUTO_REUSE):
-            h = tf.layers.dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = dense(inputs=self.x, units=800, kernel_initializer=self.init_w, use_bias=False)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = dropout(h, self.dropout_rate, training=self.is_training)
+            h = dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            mean = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
-            log_var = tf.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            h = dropout(h, self.dropout_rate, training=self.is_training)
+            mean = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            log_var = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
             return mean, log_var
 
     def _decoder(self):
@@ -95,15 +99,15 @@ class VAEArith:
 
         """
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            h = tf.layers.dense(inputs=self.z_mean, units=800, kernel_initializer=self.init_w, use_bias=False)
-            h = tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = dense(inputs=self.z_mean, units=800, kernel_initializer=self.init_w, use_bias=False)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
-            tf.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = dropout(h, self.dropout_rate, training=self.is_training)
+            h = dense(inputs=h, units=800, kernel_initializer=self.init_w, use_bias=False)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tf.nn.leaky_relu(h)
-            h = tf.layers.dropout(h, self.dropout_rate, training=self.is_training)
-            h = tf.layers.dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
+            h = dropout(h, self.dropout_rate, training=self.is_training)
+            h = dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
             h = tf.nn.relu(h)
             return h
 
@@ -174,6 +178,7 @@ class VAEArith:
                 latent: numpy nd-array
                     Returns array containing latent space encoding of 'data'
         """
+        data = prepare_latent_input(data, expected_dim=self.x_dim)
         latent = self.sess.run(self.z_mean, feed_dict={self.x: data, self.size: data.shape[0], self.is_training: False})
         return latent
 
@@ -247,15 +252,9 @@ class VAEArith:
                 interpolation = network.linear_interpolation(souece, destination, n_steps=25)
             ```
         """
-        if sparse.issparse(source_adata.X):
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
-        else:
-            source_average = source_adata.X.mean(axis=0).reshape((1, source_adata.shape[1]))
-
-        if sparse.issparse(dest_adata.X):
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
-        else:
-            dest_average = dest_adata.X.mean(axis=0).reshape((1, dest_adata.shape[1]))
+        # Use get_dense_X to handle views and sparse matrices
+        source_average = get_dense_X(source_adata).mean(axis=0).reshape((1, source_adata.shape[1]))
+        dest_average = get_dense_X(dest_adata).mean(axis=0).reshape((1, dest_adata.shape[1]))
         start = self.to_latent(source_average)
         end = self.to_latent(dest_average)
         vectors = numpy.zeros((n_steps, start.shape[1]))
@@ -327,17 +326,13 @@ class VAEArith:
         else:
             cd_ind = numpy.random.choice(range(ctrl_x.shape[0]), size=ctrl_x.shape[0], replace=False)
             stim_ind = numpy.random.choice(range(stim_x.shape[0]), size=stim_x.shape[0], replace=False)
-        if sparse.issparse(ctrl_x.X) and sparse.issparse(stim_x.X):
-            latent_ctrl = self._avg_vector(ctrl_x.X.A[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X.A[stim_ind, :])
-        else:
-            latent_ctrl = self._avg_vector(ctrl_x.X[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X[stim_ind, :])
+        # Use get_dense_X to handle views and sparse matrices
+        ctrl_x_dense = get_dense_X(ctrl_x)
+        stim_x_dense = get_dense_X(stim_x)
+        latent_ctrl = self._avg_vector(ctrl_x_dense[cd_ind, :])
+        latent_sim = self._avg_vector(stim_x_dense[stim_ind, :])
         delta = latent_sim - latent_ctrl
-        if sparse.issparse(ctrl_pred.X):
-            latent_cd = self.to_latent(ctrl_pred.X.A)
-        else:
-            latent_cd = self.to_latent(ctrl_pred.X)
+        latent_cd = self.to_latent(get_dense_X(ctrl_pred))
         stim_pred = delta + latent_cd
         predicted_cells = self.reconstruct(stim_pred, use_data=True)
         return predicted_cells, delta
@@ -354,7 +349,7 @@ class VAEArith:
         lat_cd = self._avg_vector(cd_x.X[cd_ind, :])
         lat_stim = self._avg_vector(stim_x.X[stim_ind, :])
         delta = lat_stim - lat_cd
-        latent_cd = self.to_latent(cd_y.X)
+        latent_cd = self.to_latent(get_dense_X(cd_y.X))
         stim_pred = delta + latent_cd
         predicted_cells = self.reconstruct(stim_pred, use_data=True)
         return predicted_cells, delta
@@ -379,10 +374,38 @@ class VAEArith:
                 network.restore_model()
             ```
         """
-        self.saver.restore(self.sess, self.model_to_use)
+        try:
+            self.saver.restore(self.sess, self.model_to_use)
+        except (tf.errors.NotFoundError, tf.errors.InvalidArgumentError) as e:
+            log.warning(f"Full restore failed ({type(e).__name__}): {e}. Attempting partial restore.")
+            try:
+                reader = tf.train.NewCheckpointReader(self.model_to_use)
+                checkpoint_var_map = reader.get_variable_to_shape_map()
+            except Exception as reader_error:
+                log.error(f"Failed to read checkpoint for partial restore: {reader_error}")
+                raise
+            variables_to_restore = []
+            for var in tf.global_variables():
+                var_name = var.name.split(":")[0]
+                if var_name in checkpoint_var_map:
+                    checkpoint_shape = checkpoint_var_map[var_name]
+                    if list(checkpoint_shape) == list(var.shape.as_list()):
+                        variables_to_restore.append(var)
+                    else:
+                        log.warning(
+                            f"Variable {var_name} shape mismatch: checkpoint {checkpoint_shape} vs graph {var.shape.as_list()}"
+                        )
+                else:
+                    log.warning(f"Variable {var_name} not found in checkpoint.")
+            if not variables_to_restore:
+                log.error("No matching variables found for partial restore.")
+                raise
+            partial_saver = tf.train.Saver(variables_to_restore)
+            partial_saver.restore(self.sess, self.model_to_use)
+            log.warning("Partial restore completed. Some variables may be uninitialized.")
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
-              threshold=0.00025, initial_run=True, shuffle=True, save=True):
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=DEFAULT_BATCH_SIZE, early_stop_limit=20,
+              threshold=0.0025, initial_run=True, shuffle=True, save=True):
         """
             Trains the network `n_epochs` times with given `train_data`
             and validates the model using validation_data if it was given
@@ -448,10 +471,8 @@ class VAEArith:
             train_loss = 0.0
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
-                if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
-                else:
-                    x_mb = train_data[lower:upper, :].X
+                # Use get_dense_X to handle views and sparse matrices
+                x_mb = get_dense_X(train_data[lower:upper, :])
                 if upper - lower > 1:
                     _, current_loss_train = self.sess.run([self.solver, self.vae_loss],
                                                           feed_dict={self.x: x_mb, self.time_step: current_step,
@@ -461,10 +482,8 @@ class VAEArith:
                 valid_loss = 0
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
-                    if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
-                    else:
-                        x_mb = valid_data[lower:upper, :].X
+                    # Use get_dense_X to handle views and sparse matrices
+                    x_mb = get_dense_X(valid_data[lower:upper, :])
                     current_loss_valid = self.sess.run(self.vae_loss,
                                                        feed_dict={self.x: x_mb, self.time_step: current_step,
                                                                   self.size: len(x_mb), self.is_training: False})
@@ -475,10 +494,13 @@ class VAEArith:
                 else:
                     patience_cnt += 1
                 if patience_cnt > patience:
+                    ensure_dir_for_file(self.model_to_use)
                     save_path = self.saver.save(self.sess, self.model_to_use)
                     break
-            print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)},\t Validation Loss: {valid_loss / (valid_data.shape[0] // batch_size)}")
+                print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)},\t Validation Loss: {valid_loss / (valid_data.shape[0] // batch_size)}")
+            else:
+                print(f"Epoch {it}: Train Loss: {train_loss / (train_data.shape[0] // batch_size)}")
         if save:
-            os.makedirs(self.model_to_use, exist_ok=True)
+            ensure_dir_for_file(self.model_to_use)
             save_path = self.saver.save(self.sess, self.model_to_use)
             log.info(f"Model saved in file: {save_path}. Training finished")

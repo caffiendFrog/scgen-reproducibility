@@ -1,26 +1,30 @@
+# Enable TensorFlow 1.x compatibility for TensorFlow 2.x
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense, dropout, get_session_config
+enable_tf1_compatibility()
 import tensorflow as tf
 import numpy as np
-import scanpy.api as sc
+import anndata
 from random import  shuffle
 import wget
 import os
+from scgen.file_utils import ensure_dir_for_file
+from scgen.constants import DEFAULT_BATCH_SIZE
 
 
 train_path = "../data/MouseAtlas.subset.h5ad"
 
 if os.path.isfile(train_path):
-    data = sc.read(train_path)
+    data = anndata.read_h5ad(train_path)
 else:
     train_url = "https://www.dropbox.com/s/zkss8ds1pi0384p/MouseAtlas.subset.h5ad?dl=1"
     t_dl = wget.download(train_url, train_path)
-    data = sc.read(train_path)
+    data = anndata.read_h5ad(train_path)
 
 
 
 
-sc.settings.figdir = "../results"
 model_to_use = "../models/mouse_atlas/scgen"
-batch_size = 32
+batch_size = DEFAULT_BATCH_SIZE
 train_real = data
 input_matrix = data.X
 ind_list = [i for i in range(input_matrix.shape[0])]
@@ -37,8 +41,8 @@ data_max_value = np.amax(input_matrix)
 time_step = tf.placeholder(tf.int32)
 size  = tf.placeholder(tf.int32)
 is_training = tf.placeholder(tf.bool)
-init_w =  tf.contrib.layers.xavier_initializer()
-regularizer = tf.contrib.layers.l2_regularizer(scale=0.1)
+init_w =  tf.keras.initializers.GlorotUniform()
+regularizer = tf.keras.regularizers.l2(0.1)
 
 def give_me_latent(data):
     latent = sess.run(z_mean,feed_dict = {X : data,size:len(data),is_training:False})
@@ -61,18 +65,18 @@ def reconstruct(data,use_data = False):
 
 def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
-        h = tf.layers.dense(inputs=X, units=800, kernel_initializer=init_w,use_bias=False,
+        h = dense(inputs=X, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="gq_800_1", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h,dr_rate, training= is_training)
-        h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dropout(h,dr_rate, training= is_training)
+        h = dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="gq_800_2", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h,dr_rate, training= is_training)
-        mean =  tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
-        variance =  tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
+        h = dropout(h,dr_rate, training= is_training)
+        mean =  dense(inputs=h, units=z_dim, kernel_initializer=init_w)
+        variance =  dense(inputs=h, units=z_dim, kernel_initializer=init_w)
         return mean, variance
 
 # =============================== P(Z) ======================================
@@ -87,18 +91,18 @@ def sample(n_sample):
 # =============================== P(X|z) ======================================
 def P(z,reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
-        h = tf.layers.dense(inputs=z,units= 800,kernel_initializer=init_w,use_bias=False,
+        h = dense(inputs=z,units= 800,kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="gp_800_1", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h,dr_rate, training= is_training)
+        h = dropout(h,dr_rate, training= is_training)
 
-        h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w,use_bias=False,
+        h = dense(inputs=h, units=800, kernel_initializer=init_w,use_bias=False,
                             kernel_regularizer=regularizer)
-        tf.layers.batch_normalization(h,axis= 1,training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="gp_800_2", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h,dr_rate, training= is_training)
-        h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
+        h = dropout(h,dr_rate, training= is_training)
+        h = dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
         h = tf.nn.relu(h)
         return h
 mean, variance = Q(X)
@@ -115,7 +119,7 @@ g_lrate = tf.placeholder(tf.float32, shape=[])
 global_step = tf.Variable(0, name='global_step', trainable=False, dtype=tf.int32)
 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     Solver = tf.train.AdamOptimizer(learning_rate=lr).minimize(vae_loss)
-sess=tf.InteractiveSession()
+sess = tf.InteractiveSession(config=get_session_config())
 saver = tf.train.Saver(max_to_keep=1)
 init = tf.global_variables_initializer().run()
 
@@ -150,7 +154,7 @@ def restore():
 def vector_batch_removal(inp, batch_key1, batch_key2):
     # projecting data to latent space
     latent_all = give_me_latent(inp.X)
-    latent_ann = sc.AnnData(latent_all)
+    latent_ann = anndata.AnnData(latent_all)
     latent_ann.obs["cell_type"] = inp.obs["Cell types"].tolist()
     latent_ann.obs["batch"] = inp.obs[batch_key1].tolist()
     latent_ann.obs[batch_key1] = inp.obs[batch_key1].tolist()
@@ -189,11 +193,11 @@ def vector_batch_removal(inp, batch_key1, batch_key2):
             batch_list[study].X = delta + batch_list[study].X
             temp_cell[batch_ind[study]].X = batch_list[study].X
         shared_anns.append(temp_cell)
-    all_shared_ann = sc.AnnData.concatenate(*shared_anns)
+    all_shared_ann = anndata.AnnData.concatenate(*shared_anns)
 
     if (len(not_shared_cell_types) < 1):
         # reconstructing data to gene epxression space
-        corrected = sc.AnnData(reconstruct(all_shared_ann.X, use_data=True))
+        corrected = anndata.AnnData(reconstruct(all_shared_ann.X, use_data=True))
         corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
         corrected.obs[batch_key1] = all_shared_ann.obs[batch_key1].tolist()
         corrected.obs[batch_key2] = all_shared_ann.obs[batch_key2].tolist()
@@ -202,16 +206,16 @@ def vector_batch_removal(inp, batch_key1, batch_key2):
         return corrected, all_shared_ann
 
     else:
-        all_not_shared_ann = sc.AnnData.concatenate(*not_shared_ann)
-        all_corrected_data = sc.AnnData.concatenate(all_shared_ann, all_not_shared_ann)
+        all_not_shared_ann = anndata.AnnData.concatenate(*not_shared_ann)
+        all_corrected_data = anndata.AnnData.concatenate(all_shared_ann, all_not_shared_ann)
         # reconstructing data to gene epxression space
-        corrected = sc.AnnData(reconstruct(all_corrected_data.X, use_data=True))
+        corrected = anndata.AnnData(reconstruct(all_corrected_data.X, use_data=True))
         corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist() + all_not_shared_ann.obs[
             "cell_type"].tolist()
         corrected.obs["study"] = all_shared_ann.obs[batch_key1].tolist() + all_not_shared_ann.obs["batch"].tolist()
         corrected.var_names = data.var_names.tolist()
         # shared cell_types
-        corrected_shared = sc.AnnData(reconstruct(all_shared_ann.X, use_data=True))
+        corrected_shared = anndata.AnnData(reconstruct(all_shared_ann.X, use_data=True))
         corrected_shared.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
         corrected_shared.obs["study"] = all_shared_ann.obs[batch_key1].tolist()
         corrected_shared.var_names = inp.var_names.tolist()
@@ -232,7 +236,7 @@ if __name__ == "__main__":
     train(300)
     # restore()
     corrected_mouse_atlas, latent_batch = vector_batch_removal(data, "Dataset", "Organ groups")
-    corrected_mouse_atlas.write("../data/reconstructed/scGen/mouse_atlas.h5ad")
+    corrected_mouse_atlas.write(ensure_dir_for_file("../data/reconstructed/scGen/mouse_atlas.h5ad"))
     # sc.pp.pca(corrected_mouse_atlas, svd_solver="arpack")
     # sc.pp.neighbors(corrected_mouse_atlas, n_neighbors=25)
     # sc.tl.umap(corrected_mouse_atlas)

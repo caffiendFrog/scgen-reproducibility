@@ -1,6 +1,8 @@
 import logging
 import os
 
+from scgen.tf_compat import enable_tf1_compatibility
+enable_tf1_compatibility()
 import keras
 import numpy
 import tensorflow as tf
@@ -11,7 +13,10 @@ from keras.models import load_model
 from scipy import sparse
 
 import scgen
-from .util import balancer, extractor, shuffle_data
+from scgen.file_utils import ensure_dir
+from scgen.constants import DEFAULT_BATCH_SIZE
+from .util import balancer, extractor, shuffle_data, prepare_latent_input
+from scgen.file_utils import get_dense_X
 
 log = logging.getLogger(__file__)
 
@@ -224,6 +229,7 @@ class VAEArithKeras:
             latent: numpy nd-array
                 Returns array containing latent space encoding of 'data'
         """
+        data = prepare_latent_input(data, expected_dim=self.x_dim)
         latent = self.encoder_model.predict(data)[2]
         return latent
 
@@ -304,15 +310,9 @@ class VAEArithKeras:
             >>> destination = train_data[((train_data.obs["cell_type"] == "CD8T") & (train_data.obs["condition"] == "stimulated"))]
             >>> interpolation = network.linear_interpolation(souece, destination, n_steps=25)
         """
-        if sparse.issparse(source_adata.X):
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
-        else:
-            source_average = source_adata.X.A.mean(axis=0).reshape((1, source_adata.shape[1]))
-
-        if sparse.issparse(dest_adata.X):
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
-        else:
-            dest_average = dest_adata.X.A.mean(axis=0).reshape((1, dest_adata.shape[1]))
+        # Use get_dense_X to handle views and sparse matrices
+        source_average = get_dense_X(source_adata).mean(axis=0).reshape((1, source_adata.shape[1]))
+        dest_average = get_dense_X(dest_adata).mean(axis=0).reshape((1, dest_adata.shape[1]))
         start = self.to_latent(source_average)
         end = self.to_latent(dest_average)
         vectors = numpy.zeros((n_steps, start.shape[1]))
@@ -381,17 +381,13 @@ class VAEArithKeras:
         eq = min(ctrl_x.X.shape[0], stim_x.X.shape[0])
         cd_ind = numpy.random.choice(range(ctrl_x.shape[0]), size=eq, replace=False)
         stim_ind = numpy.random.choice(range(stim_x.shape[0]), size=eq, replace=False)
-        if sparse.issparse(ctrl_x.X) and sparse.issparse(stim_x.X):
-            latent_ctrl = self._avg_vector(ctrl_x.X.A[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X.A[stim_ind, :])
-        else:
-            latent_ctrl = self._avg_vector(ctrl_x.X[cd_ind, :])
-            latent_sim = self._avg_vector(stim_x.X[stim_ind, :])
+        # Use get_dense_X to handle views and sparse matrices
+        ctrl_x_dense = get_dense_X(ctrl_x)
+        stim_x_dense = get_dense_X(stim_x)
+        latent_ctrl = self._avg_vector(ctrl_x_dense[cd_ind, :])
+        latent_sim = self._avg_vector(stim_x_dense[stim_ind, :])
         delta = latent_sim - latent_ctrl
-        if sparse.issparse(ctrl_pred.X):
-            latent_cd = self.to_latent(ctrl_pred.X.A)
-        else:
-            latent_cd = self.to_latent(ctrl_pred.X)
+        latent_cd = self.to_latent(get_dense_X(ctrl_pred))
         stim_pred = delta + latent_cd
         predicted_cells = self.reconstruct(stim_pred, use_data=True)
         return predicted_cells, delta
@@ -425,7 +421,7 @@ class VAEArithKeras:
     def train(self, train_data, vis_data,
               validation_data=None,
               n_epochs=25,
-              batch_size=32,
+              batch_size=DEFAULT_BATCH_SIZE,
               early_stop_limit=20,
               threshold=0.0025,
               initial_run=True,
@@ -525,9 +521,9 @@ class VAEArithKeras:
                                         verbose=verbose)
 
         if save is True:
-            os.makedirs(self.model_to_use, exist_ok=True)
-            self.vae_model.save(os.path.join("vae.h5"), overwrite=True)
-            self.encoder_model.save(os.path.join("encoder.h5"), overwrite=True)
-            self.decoder_model.save(os.path.join("decoder.h5"), overwrite=True)
+            ensure_dir(self.model_to_use)
+            self.vae_model.save(os.path.join(self.model_to_use, "vae.h5"), overwrite=True)
+            self.encoder_model.save(os.path.join(self.model_to_use, "encoder.h5"), overwrite=True)
+            self.decoder_model.save(os.path.join(self.model_to_use, "decoder.h5"), overwrite=True)
             log.info(f"Models are saved in file: {self.model_to_use}. Training finished")
         return result

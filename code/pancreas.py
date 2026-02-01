@@ -1,26 +1,28 @@
 import os
 from random import shuffle
 
-import matplotlib
 import numpy as np
-import scanpy.api as sc
+import anndata
 import sklearn as sk
+# Enable TensorFlow 1.x compatibility for TensorFlow 2.x
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense, dropout, get_session_config
+enable_tf1_compatibility()
 import tensorflow as tf
 import wget
+from scgen.file_utils import ensure_dir_for_file
+from scgen.constants import DEFAULT_BATCH_SIZE
 
 train_path = "../data/pancreas.h5ad"
 
 if os.path.exists(train_path):
-    data = sc.read(train_path)
+    data = anndata.read_h5ad(train_path)
 else:
     train_url = "https://www.dropbox.com/s/zvmt8oxhfksumw2/pancreas.h5ad?dl=1"
     t_dl = wget.download(train_url, train_path)
-    data = sc.read(train_path)
+    data = anndata.read_h5ad(train_path)
 
-path_to_save = "../results/Figures/Figure 6/"
-sc.settings.figdir = path_to_save
 model_to_use = "../models/scGen/pancreas/scgen"
-batch_size = 32
+batch_size = DEFAULT_BATCH_SIZE
 train_real = data
 input_matrix = data.X
 ind_list = [i for i in range(input_matrix.shape[0])]
@@ -37,8 +39,8 @@ data_max_value = np.amax(input_matrix)
 time_step = tf.placeholder(tf.int32)
 size = tf.placeholder(tf.int32)
 is_training = tf.placeholder(tf.bool)
-init_w = tf.contrib.layers.xavier_initializer()
-regularizer = tf.contrib.layers.l2_regularizer(scale=0.1)
+init_w = tf.keras.initializers.GlorotUniform()
+regularizer = tf.keras.regularizers.l2(0.1)
 
 
 def give_me_latent(data):
@@ -66,18 +68,18 @@ def reconstruct(data, use_data=False):
 
 def Q(X, reuse=False):
     with tf.variable_scope("gq", reuse=reuse):
-        h = tf.layers.dense(inputs=X, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dense(inputs=X, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="gq_800_1", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
-        h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dropout(h, dr_rate, training=is_training)
+        h = dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="gq_800_2", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
-        mean = tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
-        variance = tf.layers.dense(inputs=h, units=z_dim, kernel_initializer=init_w)
+        h = dropout(h, dr_rate, training=is_training)
+        mean = dense(inputs=h, units=z_dim, kernel_initializer=init_w)
+        variance = dense(inputs=h, units=z_dim, kernel_initializer=init_w)
         return mean, variance
 
 
@@ -96,18 +98,18 @@ def sample(n_sample):
 # =============================== P(X|z) ======================================
 def P(z, reuse=False):
     with tf.variable_scope("gp", reuse=reuse):
-        h = tf.layers.dense(inputs=z, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dense(inputs=z, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        h = tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="gp_800_1", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
+        h = dropout(h, dr_rate, training=is_training)
 
-        h = tf.layers.dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
+        h = dense(inputs=h, units=800, kernel_initializer=init_w, use_bias=False,
                             kernel_regularizer=regularizer)
-        tf.layers.batch_normalization(h, axis=1, training=is_training)
+        h = batch_normalization(reduce_axes=False, scope="gp_800_2", feature_dim=800, h=h, training=is_training)
         h = tf.nn.leaky_relu(h)
-        h = tf.layers.dropout(h, dr_rate, training=is_training)
-        h = tf.layers.dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
+        h = dropout(h, dr_rate, training=is_training)
+        h = dense(inputs=h, units=X_dim, kernel_initializer=init_w, use_bias=True)
         h = tf.nn.relu(h)
         return h
 
@@ -126,7 +128,7 @@ g_lrate = tf.placeholder(tf.float32, shape=[])
 global_step = tf.Variable(0, name='global_step', trainable=False, dtype=tf.int32)
 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
     Solver = tf.train.AdamOptimizer(learning_rate=lr).minimize(vae_loss)
-sess = tf.InteractiveSession()
+sess = tf.InteractiveSession(config=get_session_config())
 saver = tf.train.Saver(max_to_keep=1)
 init = tf.global_variables_initializer().run()
 
@@ -161,7 +163,7 @@ def train(n_epochs, full_training=True, initial_run=True):
 def vector_batch_removal():
     # projecting data to latent space
     latent_all = give_me_latent(data.X)
-    latent_ann = sc.AnnData(latent_all)
+    latent_ann = anndata.AnnData(latent_all)
     latent_ann.obs["cell_type"] = data.obs["cell_type"].tolist()
     latent_ann.obs["batch"] = data.obs["batch"].tolist()
     latent_ann.obs["sample"] = data.obs["sample"].tolist()
@@ -190,18 +192,18 @@ def vector_batch_removal():
         for study in batch_list:
             delta = np.average(max_batch_ann.X, axis=0) - np.average(batch_list[study].X, axis=0)
             batch_list[study].X = delta + batch_list[study].X
-        corrected = sc.AnnData.concatenate(*list(batch_list.values()))
+        corrected = anndata.AnnData.concatenate(*list(batch_list.values()))
         shared_anns.append(corrected)
-    all_shared_ann = sc.AnnData.concatenate(*shared_anns)
-    all_not_shared_ann = sc.AnnData.concatenate(*not_shared_ann)
-    all_corrected_data = sc.AnnData.concatenate(all_shared_ann, all_not_shared_ann)
+    all_shared_ann = anndata.AnnData.concatenate(*shared_anns)
+    all_not_shared_ann = anndata.AnnData.concatenate(*not_shared_ann)
+    all_corrected_data = anndata.AnnData.concatenate(all_shared_ann, all_not_shared_ann)
     # reconstructing data to gene epxression space
-    corrected = sc.AnnData(reconstruct(all_corrected_data.X, use_data=True))
+    corrected = anndata.AnnData(reconstruct(all_corrected_data.X, use_data=True))
     corrected.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist() + all_not_shared_ann.obs["cell_type"].tolist()
     corrected.obs["study"] = all_shared_ann.obs["sample"].tolist() + all_not_shared_ann.obs["sample"].tolist()
     corrected.var_names = data.var_names.tolist()
     # shared cell_types
-    corrected_shared = sc.AnnData(reconstruct(all_shared_ann.X, use_data=True))
+    corrected_shared = anndata.AnnData(reconstruct(all_shared_ann.X, use_data=True))
     corrected_shared.obs["cell_type"] = all_shared_ann.obs["cell_type"].tolist()
     corrected_shared.obs["study"] = all_shared_ann.obs["sample"].tolist()
     corrected_shared.var_names = data.var_names.tolist()
@@ -229,7 +231,7 @@ if __name__ == "__main__":
     all_data.obs["celltype"] = "others"
     for cell_type in top_cell_types:
         all_data.obs.loc[all_data.obs["cell_type"] == cell_type, "celltype"] = cell_type
-    all_data.write("../data/reconstructed/scGen/pancreas.h5ad")
+    all_data.write(ensure_dir_for_file("../data/reconstructed/scGen/pancreas.h5ad"))
     print("scGen batch corrected pancreas has been saved in ../data/reconstructed/scGen/pancreas.h5ad")
     # sc.pp.neighbors(all_data)
     # sc.tl.umap(all_data)

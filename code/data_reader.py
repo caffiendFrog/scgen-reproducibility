@@ -1,9 +1,10 @@
 import numpy as np
-import scanpy.api as sc
+import scanpy as sc
 from random import shuffle
 import matplotlib.pyplot as plt
 from scipy import stats
 import seaborn as sns
+from scgen.file_utils import ensure_dir_for_file, get_dense_X
 sc.settings.verbosity = 1  # show logging output
 sns.set_style("white")
 
@@ -57,7 +58,7 @@ class data_reader():
         train_s_diet = []
         train_s_groups = []
         for i in train_s:
-            train_s_X.append(i.X.A)
+            train_s_X.append(get_dense_X(i))
             train_s_diet.append(i.obs["condition"].tolist())
             train_s_groups.append(i.obs["cell_type"].tolist())
         train_s_X = np.concatenate(train_s_X)
@@ -73,7 +74,7 @@ class data_reader():
         train_t_diet = []
         train_t_groups = []
         for i in train_t:
-            train_t_X.append(i.X.A)
+            train_t_X.append(get_dense_X(i))
             train_t_diet.append(i.obs["condition"].tolist())
             train_t_groups.append(i.obs["cell_type"].tolist())
         temp = []
@@ -148,7 +149,7 @@ class data_reader():
             plt.plot(x_bar, y_pred_bar, '*', color="blue", alpha=.5)
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         plt.title(f"", fontsize=12)
-        plt.savefig(f"{path_to_save}/mean_overlap_{file_name}.pdf", bbox_inches='tight', dpi=100)
+        plt.savefig(ensure_dir_for_file(f"{path_to_save}/mean_overlap_{file_name}.pdf"), bbox_inches='tight', dpi=100)
         plt.show()
 
     def reg_overlap_plot_cross(self, adata, gene_list, path_to_save, file_name):
@@ -177,7 +178,7 @@ class data_reader():
             plt.plot(x_bar, y_bar, '.', color="gray", alpha=.5)
         plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
         plt.title(f"", fontsize=12)
-        plt.savefig(f"{path_to_save}/mean_overlap_{file_name}.pdf", bbox_inches='tight', dpi=100)
+        plt.savefig(ensure_dir_for_file(f"{path_to_save}/mean_overlap_{file_name}.pdf"), bbox_inches='tight', dpi=100)
         plt.show()
 
 
@@ -193,7 +194,7 @@ class data_reader():
         plt.ylabel("real mean", fontsize=12)
         plt.title(f"mean matching", fontsize=12)
         plt.text(max(x) - max(x) * .25, .1, r'$R^2$=' + f"{r_value**2:.2f}")
-        plt.savefig(f"{path_to_save}/{file_name}_mean.pdf", bbox_inches='tight', dpi=100)
+        plt.savefig(ensure_dir_for_file(f"{path_to_save}/{file_name}_mean.pdf"), bbox_inches='tight', dpi=100)
         plt.show()
 
     def reg_var_plot(self, adata, path_to_save, file_name):
@@ -208,7 +209,7 @@ class data_reader():
         plt.ylabel("real variance", fontsize=12)
         plt.title(f"variance matching", fontsize=12)
         plt.text(max(x) - .2*max(x), .1, r'$R^2$=' + f"{r_value**2:.2f}")
-        plt.savefig(f"{path_to_save}/{file_name}_variance.pdf", bbox_inches='tight', dpi=100)
+        plt.savefig(ensure_dir_for_file(f"{path_to_save}/{file_name}_variance.pdf"), bbox_inches='tight', dpi=100)
         plt.show()
 
     def reg_mean_plot_cross(self, adata, path_to_save, file_name, gene_list, **ploting_keys):
@@ -230,7 +231,7 @@ class data_reader():
         plt.ylabel(ploting_keys["y"], fontsize=12)
         plt.title(f" ", fontsize=12)
         plt.text(max(x) - max(x) * .25, .1, r'$R^2$=' + f"{r_value**2:.2f}")
-        plt.savefig(f"{path_to_save}/{file_name}_mean.pdf", bbox_inches='tight', dpi=100)
+        plt.savefig(ensure_dir_for_file(f"{path_to_save}/{file_name}_mean.pdf"), bbox_inches='tight', dpi=100)
         plt.show()
 
     def dpclassifier_hist(self, scg_obj, adata, delta, path_to_save):
@@ -256,7 +257,7 @@ class data_reader():
         plt.yticks(fontsize=8)
         ax = plt.gca()
         ax.grid(False)
-        plt.savefig(f"{path_to_save}"
+        plt.savefig(ensure_dir_for_file(f"{path_to_save}")
                     , bbox_inches='tight', dpi=100)
 
 

@@ -1,9 +1,13 @@
 import logging
 import os
 
+from scgen.tf_compat import enable_tf1_compatibility, batch_normalization, dense, dropout, get_session_config
+enable_tf1_compatibility()
 import tensorflow
-from scgen.models.util import shuffle_data, label_encoder
+from scgen.models.util import shuffle_data, label_encoder, prepare_latent_input
 from scipy import sparse
+from scgen.constants import DEFAULT_BATCH_SIZE
+from scgen.file_utils import ensure_dir_for_file, get_dense_X
 
 log = logging.getLogger(__file__)
 
@@ -47,11 +51,11 @@ class CVAE:
         self.y = tensorflow.placeholder(tensorflow.float32, shape=[None, 1], name="labels")
         self.time_step = tensorflow.placeholder(tensorflow.int32)
         self.size = tensorflow.placeholder(tensorflow.int32)
-        self.init_w = tensorflow.contrib.layers.xavier_initializer()
+        self.init_w = tensorflow.keras.initializers.GlorotUniform()
         self._create_network()
         self._loss_function()
         init = tensorflow.global_variables_initializer()
-        self.sess = tensorflow.InteractiveSession()
+        self.sess = tensorflow.InteractiveSession(config=get_session_config())
         self.saver = tensorflow.train.Saver(max_to_keep=1)
         self.sess.run(init)
 
@@ -72,15 +76,15 @@ class CVAE:
         """
         with tensorflow.variable_scope("encoder", reuse=tensorflow.AUTO_REUSE):
             xy = tensorflow.concat([self.x, self.y], axis=1)
-            h = tensorflow.layers.dense(inputs=xy, units=700, kernel_initializer=self.init_w, use_bias=False)
-            h = tensorflow.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = dense(inputs=xy, units=700, kernel_initializer=self.init_w, use_bias=False)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = tensorflow.layers.dense(inputs=h, units=400, kernel_initializer=self.init_w, use_bias=False)
-            h = tensorflow.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = dense(inputs=h, units=400, kernel_initializer=self.init_w, use_bias=False)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = tensorflow.layers.dropout(h, self.dr_rate, training=self.is_training)
-            mean = tensorflow.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
-            log_var = tensorflow.layers.dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            h = dropout(h, self.dr_rate, training=self.is_training)
+            mean = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
+            log_var = dense(inputs=h, units=self.z_dim, kernel_initializer=self.init_w)
             return mean, log_var
 
     def _decoder(self):
@@ -99,14 +103,14 @@ class CVAE:
         """
         with tensorflow.variable_scope("decoder", reuse=tensorflow.AUTO_REUSE):
             xy = tensorflow.concat([self.z_mean, self.y], axis=1)
-            h = tensorflow.layers.dense(inputs=xy, units=400, kernel_initializer=self.init_w, use_bias=False)
-            h = tensorflow.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = dense(inputs=xy, units=400, kernel_initializer=self.init_w, use_bias=False)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = tensorflow.layers.dense(inputs=h, units=700, kernel_initializer=self.init_w, use_bias=False)
-            h = tensorflow.layers.batch_normalization(h, axis=1, training=self.is_training)
+            h = dense(inputs=h, units=700, kernel_initializer=self.init_w, use_bias=False)
+            h = batch_normalization(reduce_axes=True, h=h, axis=1, training=self.is_training)
             h = tensorflow.nn.leaky_relu(h)
-            h = tensorflow.layers.dropout(h, self.dr_rate, training=self.is_training)
-            h = tensorflow.layers.dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
+            h = dropout(h, self.dr_rate, training=self.is_training)
+            h = dense(inputs=h, units=self.x_dim, kernel_initializer=self.init_w, use_bias=True)
             h = tensorflow.nn.relu(h)
             return h
 
@@ -179,8 +183,7 @@ class CVAE:
                 latent: numpy nd-array
                     returns array containing latent space encoding of 'data'
         """
-        if sparse.issparse(data):
-            data = data.A
+        data = prepare_latent_input(data, expected_dim=self.x_dim)
         latent = self.sess.run(self.z_mean, feed_dict={self.x: data, self.y: labels,
                                                        self.size: data.shape[0], self.is_training: False})
         return latent
@@ -239,10 +242,8 @@ class CVAE:
             prediction = network.predict('CD4T', obs_key={"cell_type": ["CD8T", "NK"]})
             ```
         """
-        if sparse.issparse(data.X):
-            stim_pred = self._reconstruct(data.X.A, labels)
-        else:
-            stim_pred = self._reconstruct(data.X, labels)
+        # Use get_dense_X to handle views and sparse matrices
+        stim_pred = self._reconstruct(get_dense_X(data), labels)
         return stim_pred
 
     def restore_model(self):
@@ -267,8 +268,8 @@ class CVAE:
         """
         self.saver.restore(self.sess, self.model_to_use)
 
-    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=32, early_stop_limit=20,
-              threshold=0.00025, initial_run=True, shuffle=True):
+    def train(self, train_data, use_validation=False, valid_data=None, n_epochs=25, batch_size=DEFAULT_BATCH_SIZE, early_stop_limit=20,
+              threshold=0.0025, initial_run=True, shuffle=True):
         """
             Trains the network `n_epochs` times with given `train_data`
             and validates the model using validation_data if it was given
@@ -330,10 +331,8 @@ class CVAE:
             train_loss = 0
             for lower in range(0, train_data.shape[0], batch_size):
                 upper = min(lower + batch_size, train_data.shape[0])
-                if sparse.issparse(train_data.X):
-                    x_mb = train_data[lower:upper, :].X.A
-                else:
-                    x_mb = train_data[lower:upper, :].X
+                # Use get_dense_X to handle views and sparse matrices
+                x_mb = get_dense_X(train_data[lower:upper, :])
                 y_mb = train_labels[lower:upper]
                 _, current_loss_train = self.sess.run([self.solver, self.vae_loss],
                                                       feed_dict={self.x: x_mb, self.y: y_mb,
@@ -345,10 +344,8 @@ class CVAE:
                 valid_loss = 0
                 for lower in range(0, valid_data.shape[0], batch_size):
                     upper = min(lower + batch_size, valid_data.shape[0])
-                    if sparse.issparse(valid_data.X):
-                        x_mb = valid_data[lower:upper, :].X.A
-                    else:
-                        x_mb = valid_data[lower:upper, :].X
+                    # Use get_dense_X to handle views and sparse matrices
+                    x_mb = get_dense_X(valid_data[lower:upper, :])
                     y_mb = valid_labels[lower:upper]
                     current_loss_valid = self.sess.run(self.vae_loss, feed_dict={self.x: x_mb, self.y: y_mb,
                                                                                  self.time_step: current_step,
@@ -361,8 +358,9 @@ class CVAE:
                 else:
                     patience_cnt += 1
                 if patience_cnt > patience:
+                    ensure_dir_for_file(self.model_to_use)
                     save_path = self.saver.save(self.sess, self.model_to_use)
                     break
-        os.makedirs(self.model_to_use, exist_ok=True)
+        ensure_dir_for_file(self.model_to_use)
         save_path = self.saver.save(self.sess, self.model_to_use)
         print(f"Model saved in file: {save_path}. Training finished")

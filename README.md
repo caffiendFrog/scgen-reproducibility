@@ -27,12 +27,56 @@ figure       | notebook path
 | [*Supplemental Figure 11*](https://nbviewer.jupyter.org/github/M0hammadL/scGen_reproducibility/blob/master/Jupyter%20Notebooks/SupplFig11.ipynb)| Jupyter Notebooks/SupplFig11.ipynb| 
 | [*Supplemental Figure 12*](https://nbviewer.jupyter.org/github/M0hammadL/scGen_reproducibility/blob/master/Jupyter%20Notebooks/SupplFig12.ipynb)| Jupyter Notebooks/SupplFig12.ipynb| 
 
-To run the notebooks and scripts you need following packages :
+## Setup
 
-tensorflow, scanpy, numpy, matplotlib, scipy, wget.
+### Prerequisites
 
+- [Conda](https://docs.conda.io/en/latest/) (Miniconda or Anaconda)
+
+### Environment Setup
+
+#### macOS
+
+1. Create and activate the conda environment:
+   ```bash
+   bash scripts/bootstrap_mac.sh
+   conda activate scgen-repro-env
+   ```
+
+2. Create the symlink (replaces duplicate `scgen` directory):
+   ```bash
+   bash scripts/create_symlink_mac.sh
+   ```
+
+#### Windows
+
+1. Create and activate the conda environment:
+   ```powershell
+   .\scripts\bootstrap_win.ps1
+   conda activate scgen-repro-env
+   ```
+   Or use the convenience batch file:
+   ```cmd
+   scripts\bootstrap_win.bat
+   ```
+
+2. Create the symlink/junction (replaces duplicate `scgen` directory):
+   ```powershell
+   .\scripts\create_symlink_win.ps1
+   ```
+   **Note:** On Windows, if symbolic link creation fails (requires Developer Mode or admin privileges), the script will automatically create a directory junction instead, which works without special privileges.
+
+### Verification
+
+After setup, verify the environment works:
+
+```bash
+python -c "import scgen; import scanpy; import tensorflow; print('All imports successful!')"
+```
 
 ## Getting Started
+
+Once the environment is set up:
 
 ```bash
 cd code/
@@ -41,5 +85,18 @@ python ModelTrainer.py all
 ```
 
 Then you can run each notebook and reproduce the results.
+
+**Note:** The `scgen` module is now available as a single source of truth in `code/scgen`, with a symlink/junction in `Jupyter Notebooks/scgen` for notebook compatibility.
+
+### Troubleshooting
+
+- **`get_version` import error**: If you encounter an error importing `get_version` when using `scgen`, you may need to install it separately or modify `code/scgen/__init__.py` to handle versioning differently. This does not affect the analysis functionality.
+- **Windows symlink issues**: If symbolic link creation fails on Windows, the script automatically falls back to a directory junction, which works without special privileges.
+- **Linux/SageMaker `CXXABI_1.3.15` error**: This means the system `libstdc++.so.6` is older than what `matplotlib` (via `scanpy`) was built against. Ensure the environment provides a newer `libstdc++` and that it is picked first:
+  ```bash
+  conda install -c conda-forge "libstdcxx-ng>=12" "libgcc-ng>=12"
+  export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
+  ```
+  Then re-run `python -c "import matplotlib; import scanpy"`.
 
 All datasets are available in this drive [directory](https://drive.google.com/drive/folders/1v3qySFECxtqWLRhRTSbfQDFqdUCAXql3).

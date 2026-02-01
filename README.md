@@ -74,6 +74,30 @@ After setup, verify the environment works:
 python -c "import scgen; import scanpy; import tensorflow; print('All imports successful!')"
 ```
 
+### Jupyter kernel check (conda)
+
+If a notebook cannot import a dependency, confirm the kernel is using the
+`scgen-repro-env` conda environment:
+
+```bash
+conda activate scgen-repro-env
+python -c "import sys; print(sys.executable)"
+jupyter kernelspec list
+```
+
+In a notebook cell:
+
+```python
+import sys
+print(sys.executable)
+```
+
+If the kernel is missing, register it:
+
+```bash
+python -m ipykernel install --user --name scgen-repro-env --display-name "Python (scgen-repro-env)"
+```
+
 ## Getting Started
 
 Once the environment is set up:

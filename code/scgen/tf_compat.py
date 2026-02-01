@@ -114,7 +114,24 @@ def get_session_config():
     return config
 
 
-def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3, 
+def _get_legacy_layer(tf, layer_name):
+    if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
+        v1_layers = getattr(tf.compat.v1, 'layers', None)
+        if v1_layers is not None and hasattr(v1_layers, layer_name):
+            return getattr(v1_layers, layer_name)
+    if hasattr(tf, 'layers') and hasattr(tf.layers, layer_name):
+        return getattr(tf.layers, layer_name)
+    return None
+
+
+def _call_keras_layer(layer_cls, inputs, training=None, **kwargs):
+    layer = layer_cls(**kwargs)
+    if training is None:
+        return layer(inputs)
+    return layer(inputs, training=training)
+
+
+def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3,
                         center=True, scale=True, name=None):
     """
     Compatibility wrapper for tf.layers.batch_normalization.
@@ -164,10 +181,9 @@ def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3,
     """
     import tensorflow as tf
     
-    # Use the canonical compatibility layer API
-    if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
-        # TensorFlow 2.x: use the official compatibility layer
-        return tf.compat.v1.layers.batch_normalization(
+    legacy = _get_legacy_layer(tf, 'batch_normalization')
+    if legacy is not None:
+        return legacy(
             inputs=inputs,
             axis=axis,
             training=training,
@@ -176,83 +192,85 @@ def batch_normalization(inputs, axis=-1, training=False, epsilon=1e-3,
             scale=scale,
             name=name
         )
-    else:
-        # TensorFlow 1.x: use the original API (fallback, shouldn't happen with enable_tf1_compatibility)
-        return tf.layers.batch_normalization(
-            inputs=inputs,
-            axis=axis,
-            training=training,
-            epsilon=epsilon,
-            center=center,
-            scale=scale,
-            name=name
-        )
+    # Keras 3 removes tf.compat.v1.layers.*; use tf.keras.layers instead.
+    return _call_keras_layer(
+        tf.keras.layers.BatchNormalization,
+        inputs,
+        training=training,
+        axis=axis,
+        epsilon=epsilon,
+        center=center,
+        scale=scale,
+        name=name
+    )
 
 
-def dense(inputs, units, kernel_initializer=None, use_bias=True, kernel_regularizer=None, name=None):
+def dense(inputs, units, activation=None, use_bias=True, kernel_initializer=None,
+          bias_initializer=None, kernel_regularizer=None, bias_regularizer=None,
+          activity_regularizer=None, kernel_constraint=None, bias_constraint=None,
+          name=None, **kwargs):
     """
-    Compatibility wrapper for tf.layers.dense.
-
-    This uses tf.compat.v1.layers.dense when available, otherwise falls back to
-    tf.keras.layers.Dense for Keras 3 environments.
+    Compatibility wrapper for tf.layers.dense with Keras 3 fallback.
     """
     import tensorflow as tf
-    if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
-        v1_layers = getattr(tf.compat.v1, 'layers', None)
-        if v1_layers is not None and hasattr(v1_layers, 'dense'):
-            return v1_layers.dense(
-                inputs=inputs,
-                units=units,
-                kernel_initializer=kernel_initializer,
-                use_bias=use_bias,
-                kernel_regularizer=kernel_regularizer,
-                name=name,
-            )
-    if hasattr(tf, 'layers') and hasattr(tf.layers, 'dense'):
-        return tf.layers.dense(
+    legacy = _get_legacy_layer(tf, 'dense')
+    if legacy is not None:
+        return legacy(
             inputs=inputs,
             units=units,
-            kernel_initializer=kernel_initializer,
+            activation=activation,
             use_bias=use_bias,
+            kernel_initializer=kernel_initializer,
+            bias_initializer=bias_initializer,
             kernel_regularizer=kernel_regularizer,
+            bias_regularizer=bias_regularizer,
+            activity_regularizer=activity_regularizer,
+            kernel_constraint=kernel_constraint,
+            bias_constraint=bias_constraint,
             name=name,
+            **kwargs
         )
-    layer = tf.keras.layers.Dense(
+    return _call_keras_layer(
+        tf.keras.layers.Dense,
+        inputs,
         units=units,
-        kernel_initializer=kernel_initializer,
+        activation=activation,
         use_bias=use_bias,
+        kernel_initializer=kernel_initializer,
+        bias_initializer=bias_initializer,
         kernel_regularizer=kernel_regularizer,
-        name=name,
+        bias_regularizer=bias_regularizer,
+        activity_regularizer=activity_regularizer,
+        kernel_constraint=kernel_constraint,
+        bias_constraint=bias_constraint,
+        name=name
     )
-    return layer(inputs)
 
 
-def dropout(inputs, rate, training=False, name=None):
+def dropout(inputs, rate, training=False, noise_shape=None, seed=None, name=None):
     """
-    Compatibility wrapper for tf.layers.dropout.
-
-    Uses tf.compat.v1.layers.dropout when available, otherwise falls back to
-    tf.keras.layers.Dropout for Keras 3 environments.
+    Compatibility wrapper for tf.layers.dropout with Keras 3 fallback.
     """
     import tensorflow as tf
-    if hasattr(tf, 'compat') and hasattr(tf.compat, 'v1'):
-        v1_layers = getattr(tf.compat.v1, 'layers', None)
-        if v1_layers is not None and hasattr(v1_layers, 'dropout'):
-            return v1_layers.dropout(
-                inputs=inputs,
-                rate=rate,
-                training=training,
-                name=name,
-            )
-    if hasattr(tf, 'layers') and hasattr(tf.layers, 'dropout'):
-        return tf.layers.dropout(
+    legacy = _get_legacy_layer(tf, 'dropout')
+    if legacy is not None:
+        return legacy(
             inputs=inputs,
             rate=rate,
             training=training,
-            name=name,
+            noise_shape=noise_shape,
+            seed=seed,
+            name=name
         )
-    layer = tf.keras.layers.Dropout(rate=rate, name=name)
-    return layer(inputs, training=training)
+    return _call_keras_layer(
+        tf.keras.layers.Dropout,
+        inputs,
+        training=training,
+        rate=rate,
+        noise_shape=noise_shape,
+        seed=seed,
+        name=name
+    )
 
 
 def _patch_tf1_symbols(tf):

@@ -13,12 +13,18 @@ def _drop_invalid_obsp(adata):
     that no longer align with the current obs dimension. These entries cause
     AnnData copy/validation to fail in modern anndata.
     """
-    if not hasattr(adata, "obsp"):
-        return []
+    # Avoid `hasattr(adata, "obsp")` because AnnData's descriptor can raise
+    # during access if obsp entries are invalid. We want to handle that case.
     try:
-        items = list(adata.obsp.items())
+        obsp = adata.obsp
+        items = list(obsp.items())
     except Exception:
-        return []
+        # Fall back to the private store to remove invalid entries without
+        # triggering validation in the public accessor.
+        obsp = getattr(adata, "_obsp", None)
+        if not hasattr(obsp, "items"):
+            return []
+        items = list(obsp.items())
     n_obs = adata.n_obs
     invalid_keys = []
     for key, value in items:
@@ -29,7 +35,10 @@ def _drop_invalid_obsp(adata):
         try:
             del adata.obsp[key]
         except Exception:
-            pass
+            try:
+                del adata._obsp[key]
+            except Exception:
+                pass
     return invalid_keys
 
 

@@ -307,8 +307,10 @@ def _patch_tf1_symbols(tf):
         tf.assign = tf.compat.v1.assign
     if not hasattr(tf, 'InteractiveSession'):
         tf.InteractiveSession = tf.compat.v1.InteractiveSession
-    if not hasattr(tf, 'losses'):
+    if not hasattr(tf, 'losses') or not hasattr(tf.losses, 'mean_squared_error'):
         tf.losses = tf.compat.v1.losses
+    if not hasattr(tf, 'random_normal'):
+        tf.random_normal = tf.compat.v1.random_normal
 
     # Optimizers/checkpoints live under compat.v1 in TF2
     if hasattr(tf.compat, 'v1') and hasattr(tf.compat.v1, 'train'):

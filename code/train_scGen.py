@@ -1,7 +1,7 @@
 import anndata
 import scanpy as sc
 import scgen
-from scgen.file_utils import should_skip_reconstruction
+from scgen.file_utils import get_dense_X, should_skip_reconstruction
 from scipy import sparse
 from scgen.constants import DEFAULT_BATCH_SIZE
 

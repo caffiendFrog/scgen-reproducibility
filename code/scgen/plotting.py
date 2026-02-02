@@ -5,7 +5,7 @@ import pandas as pd
 from scipy import stats, sparse
 from adjustText import adjust_text
 import matplotlib
-from scgen.file_utils import ensure_dir_for_file, to_dense
+from scgen.file_utils import _drop_invalid_obsp, ensure_dir_for_file, to_dense
 font = {'family' : 'Arial',
         # 'weight' : 'bold',
         'size'   : 14}
@@ -58,6 +58,7 @@ def reg_mean_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_m
     import seaborn as sns
     sns.set()
     sns.set(color_codes=True)
+    _drop_invalid_obsp(adata)
     # Convert to dense, handling views and sparse matrices
     adata = to_dense(adata)
     diff_genes = top_100_genes
@@ -164,6 +165,7 @@ def reg_var_plot(adata, condition_key, axis_keys, labels, path_to_save="./reg_va
     import seaborn as sns;
     sns.set()
     sns.set(color_codes=True)
+    _drop_invalid_obsp(adata)
     # Convert to dense, handling views and sparse matrices
     adata = to_dense(adata)
     sc.tl.rank_genes_groups(adata, groupby=condition_key, n_genes=100, method="wilcoxon")
@@ -264,6 +266,7 @@ def binary_classifier(scg_object, adata, delta, condition_key, conditions, path_
         """
     # matplotlib.rcParams.update(matplotlib.rcParamsDefault)
     pyplot.close("all")
+    _drop_invalid_obsp(adata)
     # Convert to dense, handling views and sparse matrices
     adata = to_dense(adata)
     cd = adata[adata.obs[condition_key] == conditions["ctrl"], :]

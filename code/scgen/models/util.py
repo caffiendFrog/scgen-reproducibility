@@ -7,7 +7,7 @@ from scipy import sparse
 from sklearn import preprocessing
 
 import scgen
-from scgen.file_utils import get_dense_X
+from scgen.file_utils import _drop_invalid_obsp, get_dense_X
 
 
 def _require_scanpy():
@@ -185,16 +185,17 @@ def balancer(adata, cell_type_key="cell_type", condition_key="condition"):
         train_ctrl = balancer(train_ctrl)
         ```
     """
+    _drop_invalid_obsp(adata)
     class_names = np.unique(adata.obs[cell_type_key])
     class_pop = {}
     for cls in class_names:
-        class_pop[cls] = adata.copy()[adata.obs[cell_type_key] == cls].shape[0]
+        class_pop[cls] = adata[adata.obs[cell_type_key] == cls].shape[0]
     max_number = np.max(list(class_pop.values()))
     all_data_x = []
     all_data_label = []
     all_data_condition = []
     for cls in class_names:
-        temp = adata.copy()[adata.obs[cell_type_key] == cls]
+        temp = adata[adata.obs[cell_type_key] == cls]
         index = np.random.choice(range(len(temp)), max_number)
         # Use get_dense_X to handle views and sparse matrices
         temp_x = get_dense_X(temp)[index]

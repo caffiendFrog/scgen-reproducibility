@@ -21,18 +21,18 @@ class data_reader():
             self.train_real_adata = self.train_real
             ind_list = [i for i in range(self.train_real.shape[0])]
             shuffle(ind_list)
-            self.train_real = self.train_real[ind_list, :].X
+            self.train_real = get_dense_X(self.train_real[ind_list, :])
             self.valid_real_adata = self.data_remover(valid_data)
-            self.valid_real =  self.valid_real_adata.X
+            self.valid_real = get_dense_X(self.valid_real_adata)
 
         else:
             self.train_real = train_data
             self.train_real_adata = self.train_real
             ind_list = [i for i in range(self.train_real.shape[0])]
             shuffle(ind_list)
-            self.train_real = self.train_real[ind_list, :].X
+            self.train_real = get_dense_X(self.train_real[ind_list, :])
             self.valid_real_adata = valid_data
-            self.valid_real = valid_data.X
+            self.valid_real = get_dense_X(valid_data)
 
 
     def data_remover(self,adata):
@@ -238,8 +238,8 @@ class data_reader():
 
         cd = adata[adata.obs["condition"] == self.conditions["ctrl"], :]
         stim = adata[adata.obs["condition"] == self.conditions["stim"], :]
-        all_latent_cd = scg_obj._to_latent(cd.X)
-        all_latent_stim = scg_obj._to_latent(stim.X)
+        all_latent_cd = scg_obj._to_latent(get_dense_X(cd))
+        all_latent_stim = scg_obj._to_latent(get_dense_X(stim))
         dot_cd = np.zeros((len(all_latent_cd)))
         dot_sal = np.zeros((len(all_latent_stim)))
         for ind, vec in enumerate(all_latent_cd):

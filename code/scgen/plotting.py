@@ -5,7 +5,7 @@ import pandas as pd
 from scipy import stats, sparse
 from adjustText import adjust_text
 import matplotlib
-from scgen.file_utils import _drop_invalid_obsp, ensure_dir_for_file, to_dense
+from scgen.file_utils import _drop_invalid_obsp, ensure_dir_for_file, get_dense_X, to_dense
 font = {'family' : 'Arial',
         # 'weight' : 'bold',
         'size'   : 14}
@@ -271,8 +271,8 @@ def binary_classifier(scg_object, adata, delta, condition_key, conditions, path_
     adata = to_dense(adata)
     cd = adata[adata.obs[condition_key] == conditions["ctrl"], :]
     stim = adata[adata.obs[condition_key] == conditions["stim"], :]
-    all_latent_cd = scg_object.to_latent(cd.X)
-    all_latent_stim = scg_object.to_latent(stim.X)
+    all_latent_cd = scg_object.to_latent(get_dense_X(cd))
+    all_latent_stim = scg_object.to_latent(get_dense_X(stim))
     dot_cd = numpy.zeros((len(all_latent_cd)))
     dot_sal = numpy.zeros((len(all_latent_stim)))
     for ind, vec in enumerate(all_latent_cd):

@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import anndata
 
+from .file_utils import _drop_invalid_obsp, _drop_invalid_uns_neighbors
+
 
 def load_file(filename, backup_url=None, **kwargs):#TODO : what if several fileS provided as csv or h5 e.g. x, label1, label2
 
@@ -51,7 +53,10 @@ def load_file(filename, backup_url=None, **kwargs):#TODO : what if several fileS
     elif ext in pandas_ext:
         return pd.read_csv(filename, **kwargs)
     elif ext in adata_ext:
-        return anndata.read(filename, **kwargs)
+        adata = anndata.read_h5ad(filename, **kwargs)
+        _drop_invalid_obsp(adata)
+        _drop_invalid_uns_neighbors(adata)
+        return adata
     else:
         raise ValueError('"{}" does not end on a valid extension.\n'
                          'Please, provide one of the available extensions.\n{}\n'

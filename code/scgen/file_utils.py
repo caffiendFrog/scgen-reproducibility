@@ -5,6 +5,26 @@ from scipy import sparse
 import anndata
 
 
+def _invalid_pairwise_keys(container, n_obs, keys):
+    invalid_keys = []
+    for key in keys:
+        value = container.get(key)
+        if value is None:
+            continue
+        shape = getattr(value, "shape", None)
+        if shape is None or shape != (n_obs, n_obs):
+            invalid_keys.append(key)
+    return invalid_keys
+
+
+def _safe_delete_mapping_keys(container, keys):
+    for key in keys:
+        try:
+            del container[key]
+        except Exception:
+            pass
+
+
 def _drop_invalid_obsp(adata):
     """
     Remove obsp entries that do not match (n_obs, n_obs).
@@ -27,21 +47,42 @@ def _drop_invalid_obsp(adata):
             return []
         items = list(obsp.items())
     n_obs = target.n_obs
-    invalid_keys = []
-    for key, value in items:
-        shape = getattr(value, "shape", None)
-        if shape is None or shape != (n_obs, n_obs):
-            invalid_keys.append(key)
+    container = dict(items)
+    invalid_keys = _invalid_pairwise_keys(container, n_obs, container.keys())
     for key in invalid_keys:
         try:
             del target._obsp[key]
             continue
         except Exception:
             pass
+    _safe_delete_mapping_keys(getattr(target, "obsp", {}), invalid_keys)
+    return invalid_keys
+
+
+def _drop_invalid_uns_neighbors(adata):
+    """
+    Remove legacy .uns['neighbors'] entries that do not match (n_obs, n_obs).
+    """
+    target = getattr(adata, "_parent", None) or adata
+    try:
+        neighbors = target.uns.get("neighbors")
+    except Exception:
+        return []
+    if not isinstance(neighbors, dict):
+        return []
+
+    n_obs = target.n_obs
+    invalid_keys = _invalid_pairwise_keys(neighbors, n_obs, ("distances", "connectivities"))
+
+    for key in invalid_keys:
+        _safe_delete_mapping_keys(neighbors, [key])
+
+    if len(neighbors) == 0:
         try:
-            del target.obsp[key]
+            target.uns.pop("neighbors", None)
         except Exception:
             pass
+
     return invalid_keys
 
 

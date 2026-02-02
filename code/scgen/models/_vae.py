@@ -376,10 +376,12 @@ class VAEArith:
         eq = min(cd_x.X.shape[0], stim_x.X.shape[0])
         cd_ind = numpy.random.choice(range(cd_x.shape[0]), size=eq, replace=False)
         stim_ind = numpy.random.choice(range(stim_x.shape[0]), size=eq, replace=False)
-        lat_cd = self._avg_vector(cd_x.X[cd_ind, :])
-        lat_stim = self._avg_vector(stim_x.X[stim_ind, :])
+        cd_x_dense = get_dense_X(cd_x)
+        stim_x_dense = get_dense_X(stim_x)
+        lat_cd = self._avg_vector(cd_x_dense[cd_ind, :])
+        lat_stim = self._avg_vector(stim_x_dense[stim_ind, :])
         delta = lat_stim - lat_cd
-        latent_cd = self.to_latent(get_dense_X(cd_y.X))
+        latent_cd = self.to_latent(get_dense_X(cd_y))
         stim_pred = delta + latent_cd
         predicted_cells = self.reconstruct(stim_pred, use_data=True)
         return predicted_cells, delta

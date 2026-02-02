@@ -198,6 +198,12 @@ if __name__ == '__main__':
                                            dropout_rate=0.2, learning_rate=0.001)
     test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
                                            dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="rat")
+    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
+                                           dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="rabbit")
+    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
+                                           dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="mouse")
+    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
+                                           dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="pig")
     train_cross_study("study", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
                       dropout_rate=0.2, learning_rate=0.001)
     reconstruct_whole_data("pbmc")

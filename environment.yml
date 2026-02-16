@@ -572,4 +572,3 @@ dependencies:
       - werkzeug==3.1.5
       - wget==3.2
       - wrapt==2.1.0
-prefix: /home/sagemaker-user/.conda/envs/scgen-repro-env

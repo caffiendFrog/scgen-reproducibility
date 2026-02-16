@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create symlink from Jupyter Notebooks/scgen to code/scgen on macOS
+# Create symlink from Jupyter Notebooks/scgen to code/scgen (Linux)
 
 set -e  # Exit on error
 

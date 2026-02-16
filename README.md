@@ -68,13 +68,15 @@ conda activate scgen-repro-env
 
 If the env already exists and you want to update: `conda env update -f environment.yml --prune`.
 
-### 2. Create the scgen symlink
+### 2. Create the scgen symlink and add code/ to Python path
 
-So notebooks can import `code/scgen`:
+**With `scgen-repro-env` activated**, run (from repo root):
 
 ```bash
 bash scripts/create_symlink.sh
 ```
+
+This (1) creates `Jupyter Notebooks/scgen` → `code/scgen`, and (2) writes a `.pth` file in the env’s site-packages so the repo’s `code/` is on `sys.path`. Then `import scgen` works in notebooks from any directory. Restart the Jupyter kernel (or open a new terminal) after running the script so the path is picked up.
 
 ### Verification
 

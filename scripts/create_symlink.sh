@@ -26,3 +26,13 @@ else
     echo "Symlink or directory already exists at 'Jupyter Notebooks/scgen'"
     echo "Skipping symlink creation."
 fi
+
+# Add repo code/ to Python path for this conda env (so "import scgen" works in any cwd, e.g. Jupyter)
+if [ -n "$CONDA_PREFIX" ] && [ -d "$REPO_ROOT/code" ]; then
+    SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
+    PTH_FILE="$SITE_PACKAGES/scgen-repro.pth"
+    echo "$REPO_ROOT/code" > "$PTH_FILE"
+    echo "Added $REPO_ROOT/code to Python path ($PTH_FILE). Restart the kernel or open a new terminal for 'import scgen' to work."
+else
+    echo "Tip: activate scgen-repro-env and run this script again to make 'import scgen' work in notebooks from any directory."
+fi

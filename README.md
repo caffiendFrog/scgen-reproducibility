@@ -81,14 +81,14 @@ bash scripts/create_symlink.sh
 After setup, verify the environment works. From the repo root (so Python can find the local `scgen` package under `code/`):
 
 ```bash
-cd code && python -c "import scgen; import scanpy; import tensorflow; print('All imports successful!')"
+cd code && python -c "import scgen; import scanpy; import tensorflow; print('All imports successful')"
 ```
 
 **SageMaker / CXXABI error:** If you see `version 'CXXABI_1.3.15' not found` when importing scanpy/matplotlib, the system libstdc++ is older than the one the env was built with. Use the conda env’s libraries first:
 
 ```bash
 export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
-cd code && python -c "import scgen; import scanpy; import tensorflow; print('All imports successful!')"
+cd code && python -c "import scgen; import scanpy; import tensorflow; print('All imports successful')"
 ```
 
 To make this permanent for this env (run once), so every new shell has it:

@@ -76,7 +76,7 @@ If the env already exists and you want to update: `conda env update -f environme
 bash scripts/create_symlink.sh
 ```
 
-This (1) creates `Jupyter Notebooks/scgen` → `code/scgen`, and (2) writes a `.pth` file in the env’s site-packages so the repo’s `code/` is on `sys.path`. Then `import scgen` works in notebooks from any directory. Restart the Jupyter kernel (or open a new terminal) after running the script so the path is picked up.
+This (1) creates `Jupyter Notebooks/scgen` → `code/scgen`, (2) adds the repo’s `code/` to Python’s path via a `.pth` file so `import scgen` works in all notebooks, and (3) installs a startup hook that sets `R_HOME` for rpy2 (e.g. CCA notebook) so R is found in Jupyter kernels. Restart the Jupyter kernel (or open a new terminal) after running the script so changes apply.
 
 ### Verification
 

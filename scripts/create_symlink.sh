@@ -31,17 +31,29 @@ fi
 if [ -n "$CONDA_PREFIX" ] && [ -d "$REPO_ROOT/code" ]; then
     SITE_PACKAGES=$(python -c "import site; print(site.getsitepackages()[0])")
     PTH_FILE="$SITE_PACKAGES/scgen-repro.pth"
-    # Run at Python startup: add repo code/ to path and set R_HOME for rpy2 (all notebooks)
+    # Run at Python startup: R_HOME for rpy2, and cwd for Jupyter so ../data etc. resolve
     python -c "
 import os
 pth_dir = '''$SITE_PACKAGES'''
-code = '''# Set R_HOME for rpy2 when not set (e.g. Jupyter kernels).
+code = '''# Env setup for scgen-repro: R_HOME for rpy2, cwd for Jupyter notebooks.
 import os as _os
 import sys as _sys
 if \"R_HOME\" not in _os.environ:
     _r = _os.path.join(_sys.prefix, \"lib\", \"R\")
     if _os.path.isdir(_r):
         _os.environ[\"R_HOME\"] = _r
+# In Jupyter, set cwd to repo Jupyter Notebooks so paths like ../data resolve
+try:
+    _ip = get_ipython()
+    if _ip is not None:
+        _code_path = next((p for p in _sys.path if p.endswith(\"code\")), None)
+        if _code_path:
+            _repo = _os.path.dirname(_code_path)
+            _nb_dir = _os.path.join(_repo, \"Jupyter Notebooks\")
+            if _os.path.isdir(_nb_dir):
+                _os.chdir(_nb_dir)
+except NameError:
+    pass
 '''
 with open(os.path.join(pth_dir, 'scgen_repro_env.py'), 'w') as f:
     f.write(code)

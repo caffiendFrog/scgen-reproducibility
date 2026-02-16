@@ -31,9 +31,19 @@ This repository includes python scripts in [code](https://github.com/theislab/sc
 
 ## Setup
 
-**Supported platform: Linux only.** Setup has not been verified on macOS or Windows.
+**Verified platform: Linux only.** Setup has not been verified on macOS or Windows.
 
 Both `environment.yml` and `conda-lock.yml` in this repo contain the **full set of dependencies** at versions verified to run all notebooks and scripts on Linux.
+
+### First: initialize conda in your shell
+
+Do this once so `conda` and `conda activate` work in your terminal:
+
+```bash
+conda init bash
+```
+
+Then start a new shell or run `source ~/.bashrc` (use `source ~/.zshrc` if you use zsh). Without this, the `conda activate` steps below will not work.
 
 ### Prerequisites
 
@@ -68,11 +78,27 @@ bash scripts/create_symlink.sh
 
 ### Verification
 
-After setup, verify the environment works:
+After setup, verify the environment works. From the repo root (so Python can find the local `scgen` package under `code/`):
 
 ```bash
-python -c "import scgen; import scanpy; import tensorflow; print('All imports successful!')"
+cd code && python -c "import scgen; import scanpy; import tensorflow; print('All imports successful!')"
 ```
+
+**SageMaker / CXXABI error:** If you see `version 'CXXABI_1.3.15' not found` when importing scanpy/matplotlib, the system libstdc++ is older than the one the env was built with. Use the conda env’s libraries first:
+
+```bash
+export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
+cd code && python -c "import scgen; import scanpy; import tensorflow; print('All imports successful!')"
+```
+
+To make this permanent for this env (run once), so every new shell has it:
+
+```bash
+mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+printf '#!/bin/sh\nexport LD_LIBRARY_PATH="%s/lib:${LD_LIBRARY_PATH}"\n' "$CONDA_PREFIX" > $CONDA_PREFIX/etc/conda/activate.d/libstdcxx_ldlibrarypath.sh
+```
+
+Then `conda deactivate` and `conda activate scgen-repro-env` (or open a new terminal) and re-run the verification.
 
 ### Jupyter kernel check (conda)
 

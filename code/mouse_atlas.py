@@ -20,13 +20,21 @@ from scgen.constants import DEFAULT_BATCH_SIZE
 
 
 train_path = "../data/MouseAtlas.subset.h5ad"
+train_url = "https://drive.google.com/file/d/1IiLFYEs4a8OS2nqT4FSk5BsB3UO3UHPZ/view?usp=drive_link"
 
-if os.path.isfile(train_path):
-    data = anndata.read_h5ad(train_path)
-else:
-    train_url = "https://drive.google.com/file/d/1IiLFYEs4a8OS2nqT4FSk5BsB3UO3UHPZ/view?usp=drive_link"
+def _load_mouse_atlas():
+    if os.path.isfile(train_path):
+        try:
+            return anndata.read_h5ad(train_path)
+        except OSError as e:
+            if "file signature not found" in str(e) or "Unable to" in str(e):
+                os.remove(train_path)
+            else:
+                raise
     download_file(train_url, train_path)
-    data = anndata.read_h5ad(train_path)
+    return anndata.read_h5ad(train_path)
+
+data = _load_mouse_atlas()
 
 
 

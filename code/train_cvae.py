@@ -28,7 +28,7 @@ except Exception as e:
 import numpy as np
 from scgen.file_utils import ensure_dir_for_file
 
-output_path = "../data/reconstructed/CVAE_CD4T.h5ad"
+output_path = "../data/reconstructed/CVAE/CVAE_CD4T.h5ad"
 if should_skip_reconstruction(output_path):
     raise SystemExit(0)
 

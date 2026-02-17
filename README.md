@@ -128,9 +128,22 @@ python -m ipykernel install --user --name scgen-repro-env --display-name "Python
 
 ## Getting Started
 
-**Reproducibility checklist:** (1) Create the environment from `conda-lock.yml` or `environment.yml`. (2) Run `scripts/create_symlink.sh` so notebooks find `code/scgen`. (3) Download data and train models (below). (4) Run notebooks with the `scgen-repro-env` kernel.
+**Reproducibility checklist:** (1) Create the environment from `conda-lock.yml` or `environment.yml`. (2) Run `scripts/create_symlink.sh` so notebooks find `code/scgen`. (3) Clone the Scanorama repo (required for the pancreas-4-Scanorama notebook). (4) Download data and train models (below). (5) Run notebooks with the `scgen-repro-env` kernel.
 
-Once the environment is set up:
+### Clone Scanorama (before data download)
+
+The [pancreas-4-Scanorama](Jupyter%20Notebooks/pancreas-4-Scanorama.ipynb) notebook expects the [Scanorama](https://github.com/brianhie/scanorama) repo as a **sibling** of this repo. Clone it **before** running the data download:
+
+```bash
+cd /path/to/parent   # parent of scgen-reproducibility
+git clone https://github.com/brianhie/scanorama.git scanorama
+```
+
+Then create `scanorama/conf/4panc.txt` and `scanorama/bin/4panc.py` as described in the notebook. For setup and troubleshooting (conda install, dependencies, paths), see [notes/pancreas-4-scanorama-compatibility.md](notes/pancreas-4-scanorama-compatibility.md).
+
+### Download data and train models
+
+Once the environment (and Scanorama clone, if you use the pancreas-4-Scanorama notebook) is set up:
 
 ```bash
 cd code/

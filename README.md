@@ -151,6 +151,18 @@ python DataDownloader.py
 python ModelTrainer.py all
 ```
 
+**Before running the notebooks**, confirm that the expected data files exist. The notebooks expect the following (paths relative to the repo root). If any are missing, the training pipeline may have been interrupted—for example by a session timeout or resource limit—before it finished. In that case, re-run from the repo root: `cd code && python DataDownloader.py && python ModelTrainer.py all`.
+
+**Raw inputs** (downloaded by `DataDownloader.py`):  
+`data/train_pbmc.h5ad`, `data/valid_pbmc.h5ad`, `data/train_hpoly.h5ad`, `data/valid_hpoly.h5ad`, `data/train_salmonella.h5ad`, `data/valid_salmonella.h5ad`, `data/train_species.h5ad`, `data/valid_species.h5ad`, `data/train_study.h5ad`, `data/valid_study.h5ad`, `data/train_zheng.h5ad`, `data/pancreas.h5ad`, `data/MouseAtlas.subset.h5ad`.
+
+**Reconstructed / model outputs** (produced by `ModelTrainer.py all` or batch-correction notebooks):  
+- **scGen:** `data/reconstructed/scGen/pbmc.h5ad`, `hpoly.h5ad`, `salmonella.h5ad`, `pancreas.h5ad`, `mouse_atlas.h5ad`  
+- **Other models:** `data/reconstructed/PCAVecArithm/PCA_pbmc.h5ad`, `PCA_CD4T.h5ad`, `PCA_CD4T_biased.h5ad`; `data/reconstructed/VecArithm/VecArithm_CD4T.h5ad`; `data/reconstructed/CVAE/CVAE_CD4T.h5ad`; `data/reconstructed/CGAN/cgan_cd4t.h5ad`  
+- **Batch correction (SupplFig10):** `data/bbknn.h5ad`, `data/cca.h5ad`, `data/mnn.h5ad`, `data/scanorama.h5ad` (these are produced by the bbknn, cca, mnn, and pancreas-4-Scanorama notebooks respectively if you run them first).
+
+Not every notebook uses every file; the list above is the full set that at least one notebook expects.
+
 Then run the notebooks in `Jupyter Notebooks/` to reproduce the results. Use the kernel `Python (scgen-repro-env)` so all dependencies are available.
 
 ### Re-running reconstructions

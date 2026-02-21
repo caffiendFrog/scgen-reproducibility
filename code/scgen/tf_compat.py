@@ -275,10 +275,11 @@ def dropout(inputs, rate, training):
     - Expects is_training to be a boolean or boolean tensor
     """
     import tensorflow as tf
+    from scgen.repro_utils import get_tf_op_seed
 
     return tf.cond(
         training,
-        lambda: tf.nn.dropout(inputs, rate=rate),
+        lambda: tf.nn.dropout(inputs, rate=rate, seed=get_tf_op_seed()),
         lambda: inputs,
     )
 

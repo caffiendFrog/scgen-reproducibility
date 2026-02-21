@@ -196,13 +196,18 @@ def train_cross_study(data_name="study",
     network.sess.close()
 
 
-def _run_phase_or_raise(commands):
-    exit_code = run_commands_parallel(commands, cwd=os.path.dirname(os.path.abspath(__file__)))
+def _run_phase_or_raise(commands, overwrite=False):
+    exit_code = run_commands_parallel(
+        commands,
+        cwd=os.path.dirname(os.path.abspath(__file__)),
+        overwrite=overwrite,
+    )
     if exit_code != 0:
         raise RuntimeError("One or more train_scGen phase jobs failed.")
 
 
 if __name__ == '__main__':
+    overwrite_enabled = os.environ.get("SCGEN_OVERWRITE") == "1"
     parser = argparse.ArgumentParser(description="Train/reconstruct scGen with phased parallel execution.")
     parser.add_argument(
         "--task",
@@ -290,6 +295,6 @@ if __name__ == '__main__':
         f"{py} ./{script} --task train_some --heldout_set set2",
         f"{py} ./{script} --task train_some --heldout_set set3",
     ]
-    _run_phase_or_raise(train_phase_commands)
-    _run_phase_or_raise(reconstruct_phase_commands)
-    _run_phase_or_raise(more_train_phase_commands)
+    _run_phase_or_raise(train_phase_commands, overwrite=overwrite_enabled)
+    _run_phase_or_raise(reconstruct_phase_commands, overwrite=overwrite_enabled)
+    _run_phase_or_raise(more_train_phase_commands, overwrite=overwrite_enabled)

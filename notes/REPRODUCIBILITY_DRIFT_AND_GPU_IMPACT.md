@@ -170,3 +170,65 @@ When comparing outputs across these generations:
 - Keep and archive generated run manifests under `data/run_manifests/` (includes
   command plan, env, seeds, and commit).
 - Re-run key analyses multiple times and report spread (not only one run).
+
+## Seed coverage map
+
+This map summarizes where stochastic operations are seeded and how seed values
+flow through the code.
+
+### Seed sources and propagation
+
+- **Global base seed (default):** `SCGEN_SEED=4039` (if not overridden).
+- **Per-process seed:** schedulers set `SCGEN_PROCESS_SEED` (derived from
+  `SCGEN_SEED` + task index for scheduled jobs).
+- **Mirrored env vars per launched process:** `PYTHONHASHSEED`, `NUMPY_SEED`,
+  `TF_SEED`.
+- **Determinism env defaults (opt-out):** `TF_DETERMINISTIC_OPS=1`,
+  `TF_CUDNN_DETERMINISTIC=1` unless `SCGEN_ENABLE_DETERMINISM=0`.
+
+### Python / NumPy / TensorFlow seed setup
+
+- **Shared seed hook:** `code/scgen/repro_utils.py::seed_everything_from_env()`
+  - Seeds Python `random`, NumPy, TF2 seed API, and TF1 compat seed API.
+- **Entry scripts calling seed hook:**
+  - `code/vec_arith.py`
+  - `code/vec_arith_pca.py`
+  - `code/train_cvae.py`
+  - `code/train_scGen.py`
+  - `code/st_gan.py`
+  - `code/mouse_atlas.py`
+  - `code/pancreas.py`
+
+### TensorFlow random-op coverage
+
+- **Dropout random op wrapper**
+  - `code/scgen/tf_compat.py::dropout(...)`
+  - Passes explicit seed to `tf.nn.dropout` from `TF_SEED` /
+    `SCGEN_PROCESS_SEED` / `SCGEN_SEED`.
+
+- **VAE/CVAE latent sampling**
+  - `code/scgen/models/_vae.py::_sample_z` uses `tf.random_normal(..., seed=self.tf_seed)`
+  - `code/scgen/models/_cvae.py::_sample_z` uses
+    `tensorflow.random_normal(..., seed=self.tf_seed)`
+  - Both classes set `self.tf_seed` from env and re-apply graph seed after
+    `reset_default_graph()`.
+
+- **Keras VAE latent sampling**
+  - `code/scgen/models/_vae_keras.py::_sample_z` uses
+    `K.random_normal(..., seed=eps_seed)` from env seed.
+  - Class also re-applies graph seed after `reset_default_graph()`.
+
+- **Pancreas / Mouse Atlas latent sampling**
+  - `code/pancreas.py::sample_z` uses `tf.random_normal(..., seed=TF_SEED)`
+  - `code/mouse_atlas.py::sample_z` uses `tf.random_normal(..., seed=TF_SEED)`
+
+- **ST-GAN initializer**
+  - `code/st_gan.py` uses
+    `tf.truncated_normal_initializer(stddev=0.02, seed=TF_SEED)`.
+
+### Intentional non-coverage / caveats
+
+- Some Keras layer-level random behaviors rely on graph/global TF seed rather
+  than hardcoding per-layer explicit seeds. This avoids over-constraining all
+  layers to identical RNG streams while retaining deterministic behavior under
+  fixed seed + deterministic runtime settings.

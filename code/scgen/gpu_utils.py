@@ -2,24 +2,7 @@ import os
 import subprocess
 import time
 
-
-def _base_seed():
-    try:
-        return int(os.environ.get("SCGEN_SEED", "4039"))
-    except ValueError:
-        return 4039
-
-
-def _apply_reproducibility_env(env, seed):
-    env["SCGEN_PROCESS_SEED"] = str(seed)
-    env["PYTHONHASHSEED"] = str(seed)
-    env["NUMPY_SEED"] = str(seed)
-    env["TF_SEED"] = str(seed)
-    enable_determinism = env.get("SCGEN_ENABLE_DETERMINISM", "1") != "0"
-    if enable_determinism:
-        env.setdefault("TF_DETERMINISTIC_OPS", "1")
-        env.setdefault("TF_CUDNN_DETERMINISTIC", "1")
-
+from scgen.repro_utils import apply_reproducibility_env, get_seed_from_env
 
 def get_available_gpu_ids():
     # Respect explicit visibility first so callers can constrain devices externally
@@ -66,7 +49,7 @@ def run_commands_parallel(commands, cwd=None, overwrite=False):
     running = []
     exit_codes = []
     available_gpu_ids = list(gpu_ids)
-    seed_base = _base_seed()
+    seed_base = get_seed_from_env()
     while pending or running:
         while pending and len(running) < max_workers:
             command_idx, command = pending.pop(0)
@@ -75,7 +58,7 @@ def run_commands_parallel(commands, cwd=None, overwrite=False):
                 env["SCGEN_OVERWRITE"] = "1"
             else:
                 env.pop("SCGEN_OVERWRITE", None)
-            _apply_reproducibility_env(env, seed=seed_base + command_idx)
+            apply_reproducibility_env(env, seed=seed_base + command_idx)
             if gpu_ids:
                 gpu_id = available_gpu_ids.pop(0)
                 env["CUDA_VISIBLE_DEVICES"] = gpu_id
@@ -109,7 +92,7 @@ def run_command_specs_parallel(command_specs, cwd=None, overwrite=False):
     exit_codes = []
     total_gpu_count = len(gpu_ids)
     available_gpu_ids = list(gpu_ids)
-    seed_base = _base_seed()
+    seed_base = get_seed_from_env()
     while pending or running:
         launched = True
         while launched and pending:
@@ -133,7 +116,7 @@ def run_command_specs_parallel(command_specs, cwd=None, overwrite=False):
                     env["SCGEN_OVERWRITE"] = "1"
                 else:
                     env.pop("SCGEN_OVERWRITE", None)
-                _apply_reproducibility_env(env, seed=seed_base + spec_idx)
+                apply_reproducibility_env(env, seed=seed_base + spec_idx)
                 if allocated_gpu_ids:
                     env["CUDA_VISIBLE_DEVICES"] = ",".join(allocated_gpu_ids)
                     print(f"Launching `{command}` on GPUs {','.join(allocated_gpu_ids)}")

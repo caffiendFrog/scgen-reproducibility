@@ -17,6 +17,7 @@ from scgen.file_utils import ensure_dir
 from scgen.constants import DEFAULT_BATCH_SIZE
 from .util import balancer, extractor, shuffle_data, prepare_latent_input
 from scgen.file_utils import get_dense_X
+from scgen.repro_utils import get_tf_op_seed, set_tf_graph_seed_from_env
 
 log = logging.getLogger(__file__)
 
@@ -52,6 +53,7 @@ class VAEArithKeras:
 
     def __init__(self, x_dimension, z_dimension=100, **kwargs):
         tf.reset_default_graph()
+        self.tf_seed = set_tf_graph_seed_from_env(tf)
         self.x_dim = x_dimension
         self.z_dim = z_dimension
         self.learning_rate = kwargs.get("learning_rate", 0.001)
@@ -161,7 +163,7 @@ class VAEArithKeras:
         mu, log_var = args
         batch_size = K.shape(mu)[0]
         z_dim = K.shape(mu)[1]
-        eps = K.random_normal(shape=[batch_size, z_dim])
+        eps = K.random_normal(shape=[batch_size, z_dim], seed=get_tf_op_seed())
         return mu + K.exp(log_var / 2) * eps
 
     def _create_network(self):

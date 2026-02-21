@@ -11,7 +11,7 @@ from scgen.file_utils import ensure_dir_for_file, get_dense_X, should_skip_recon
 from scgen.constants import STGAN_BATCH_SIZE
 from scgen.repro_utils import seed_everything_from_env
 
-seed_everything_from_env()
+TF_SEED = seed_everything_from_env()
 
 # =============================== downloading training and validation files ====================================
 train_path = "../data/train_pbmc.h5ad"
@@ -63,7 +63,7 @@ X_ctrl = tf.placeholder(tf.float32, shape=[None, X_dim], name="data_ctrl")
 time_step = tf.placeholder(tf.int32)
 size = tf.placeholder(tf.int32)
 learning_rate = 0.001
-initializer = tf.truncated_normal_initializer(stddev=0.02)
+initializer = tf.truncated_normal_initializer(stddev=0.02, seed=TF_SEED)
 is_training = tf.placeholder(tf.bool)
 dr_rate = .5
 const = 5

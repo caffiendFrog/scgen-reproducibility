@@ -15,6 +15,7 @@ from scgen.models.util import shuffle_data, label_encoder, prepare_latent_input
 from scipy import sparse
 from scgen.constants import DEFAULT_BATCH_SIZE
 from scgen.file_utils import ensure_dir_for_file, get_dense_X
+from scgen.repro_utils import set_tf_graph_seed_from_env
 
 log = logging.getLogger(__file__)
 
@@ -44,6 +45,7 @@ class CVAE:
 
     def __init__(self, x_dimension, z_dimension=100, **kwargs):
         tensorflow.reset_default_graph()
+        self.tf_seed = set_tf_graph_seed_from_env(tensorflow)
         self.x_dim = x_dimension
         self.z_dim = z_dimension
         self.lr = kwargs.get("learning_rate", 0.001)
@@ -156,7 +158,7 @@ class CVAE:
             # Returns
                 The computed Tensor of samples with shape [size, z_dim].
         """
-        eps = tensorflow.random_normal(shape=[self.size, self.z_dim])
+        eps = tensorflow.random_normal(shape=[self.size, self.z_dim], seed=self.tf_seed)
         return self.mu + tensorflow.exp(self.log_var / 2) * eps
 
     def _create_network(self):

@@ -7,6 +7,7 @@ import sys
 import traceback
 
 from scgen.gpu_utils import get_available_gpu_ids, run_command_specs_parallel
+from scgen.repro_utils import apply_reproducibility_env, resolve_seed
 
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -21,14 +22,9 @@ def _build_env(overwrite=False):
         env["SCGEN_OVERWRITE"] = "1"
     else:
         env.pop("SCGEN_OVERWRITE", None)
-    seed = env.get("SCGEN_SEED", "4039")
-    env.setdefault("SCGEN_PROCESS_SEED", seed)
-    env.setdefault("PYTHONHASHSEED", seed)
-    env.setdefault("NUMPY_SEED", seed)
-    env.setdefault("TF_SEED", seed)
-    if env.get("SCGEN_ENABLE_DETERMINISM", "1") != "0":
-        env.setdefault("TF_DETERMINISTIC_OPS", "1")
-        env.setdefault("TF_CUDNN_DETERMINISTIC", "1")
+    seed = resolve_seed(env.get("SCGEN_SEED"))
+    env["SCGEN_SEED"] = str(seed)
+    apply_reproducibility_env(env, seed=seed)
     return env
 
 

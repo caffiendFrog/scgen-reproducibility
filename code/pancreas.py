@@ -19,6 +19,9 @@ import tensorflow as tf
 import wget
 from scgen.file_utils import ensure_dir_for_file, should_skip_reconstruction
 from scgen.constants import DEFAULT_BATCH_SIZE
+from scgen.repro_utils import seed_everything_from_env
+
+TF_SEED = seed_everything_from_env()
 
 train_path = "../data/pancreas.h5ad"
 
@@ -92,7 +95,7 @@ def Q(X, reuse=False):
 
 # =============================== P(Z) ======================================
 def sample_z(mu, log_var, size):
-    eps = tf.random_normal(shape=[size, z_dim])
+    eps = tf.random_normal(shape=[size, z_dim], seed=TF_SEED)
     return mu + tf.exp(log_var / 2) * eps
 
 

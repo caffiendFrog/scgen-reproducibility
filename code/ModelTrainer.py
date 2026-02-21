@@ -21,7 +21,7 @@ def _build_env(overwrite=False):
         env["SCGEN_OVERWRITE"] = "1"
     else:
         env.pop("SCGEN_OVERWRITE", None)
-    seed = env.get("SCGEN_SEED", "1248")
+    seed = env.get("SCGEN_SEED", "4039")
     env.setdefault("SCGEN_PROCESS_SEED", seed)
     env.setdefault("PYTHONHASHSEED", seed)
     env.setdefault("NUMPY_SEED", seed)

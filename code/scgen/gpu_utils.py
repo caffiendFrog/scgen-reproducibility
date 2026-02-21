@@ -5,9 +5,9 @@ import time
 
 def _base_seed():
     try:
-        return int(os.environ.get("SCGEN_SEED", "1248"))
+        return int(os.environ.get("SCGEN_SEED", "4039"))
     except ValueError:
-        return 1248
+        return 4039
 
 
 def _apply_reproducibility_env(env, seed):

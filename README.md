@@ -35,7 +35,12 @@ This repository includes python scripts in [code](https://github.com/theislab/sc
 
 Both `environment.yml` and `conda-lock.yml` in this repo contain the **full set of dependencies** at versions verified to run all notebooks and scripts on Linux.
 
-### First: initialize conda in your shell
+### Prerequisites
+
+- [Conda](https://docs.conda.io/en/latest/) (Miniconda or Anaconda) on Linux
+- For **exact reproducibility**: [conda-lock](https://github.com/conda/conda-lock) — `pip install conda-lock` or `conda install -c conda-forge conda-lock`
+
+### First: initialize conda in your shell (one-time)
 
 Do this once so `conda` and `conda activate` work in your terminal:
 
@@ -45,16 +50,22 @@ conda init bash
 
 Then start a new shell or run `source ~/.bashrc` (use `source ~/.zshrc` if you use zsh). Without this, the `conda activate` steps below will not work.
 
-### Prerequisites
+## Notebook Quickstart (recommended order)
 
-- [Conda](https://docs.conda.io/en/latest/) (Miniconda or Anaconda) on Linux
-- For **exact reproducibility**: [conda-lock](https://github.com/conda/conda-lock) — `pip install conda-lock` or `conda install -c conda-forge conda-lock`
+### 1. Change to the repository root first
 
-### 1. Create the conda environment
+Run setup commands from the repo root so `conda-lock.yml`, `environment.yml`, and `scripts/` paths resolve correctly:
+
+```bash
+cd /path/to/scgen-reproducibility
+```
+
+### 2. Create the conda environment
 
 **Option A — conda-lock (recommended):** same package versions and builds every time.
 
 ```bash
+cd /path/to/scgen-reproducibility
 conda-lock install -n scgen-repro-env conda-lock.yml
 conda activate scgen-repro-env
 ```
@@ -62,50 +73,59 @@ conda activate scgen-repro-env
 **Option B — environment.yml:**
 
 ```bash
+cd /path/to/scgen-reproducibility
 conda env create -f environment.yml
 conda activate scgen-repro-env
 ```
 
 If the env already exists and you want to update: `conda env update -f environment.yml --prune`.
 
-### 2. Create the scgen symlink and add code/ to Python path
+### 3. Run notebook environment setup
 
 **With `scgen-repro-env` activated**, run (from repo root):
 
 ```bash
-bash scripts/create_symlink.sh
+bash scripts/setup_notebook_environment.sh
 ```
 
-This (1) creates `Jupyter Notebooks/scgen` → `code/scgen`, (2) adds the repo’s `code/` to Python’s path via a `.pth` file so `import scgen` works in all notebooks, and (3) installs a startup hook that sets `R_HOME` for rpy2 (e.g. CCA notebook) so R is found in Jupyter kernels. Restart the Jupyter kernel (or open a new terminal) after running the script so changes apply.
+This script is idempotent and performs notebook-specific setup in one place:
+- creates `Jupyter Notebooks/scgen` -> `code/scgen`
+- installs an IPython startup hook used by Jupyter kernels
+- installs env-local conda activation/deactivation hooks for `LD_LIBRARY_PATH`
+- registers `Python (scgen-repro-env)` in Jupyter kernelspecs
+- bootstraps Scanorama for `pancreas-4-Scanorama.ipynb`:
+  - clones `https://github.com/brianhie/scanorama.git` to a sibling `../scanorama` (if missing)
+  - creates `../scanorama/conf/4panc.txt`
+  - creates `../scanorama/bin/4panc.py`
+
+Optional flags:
+
+```bash
+# Skip Scanorama bootstrap
+bash scripts/setup_notebook_environment.sh --skip-scanorama
+
+# Override clone target and overwrite existing 4panc files
+bash scripts/setup_notebook_environment.sh --scanorama-dir /custom/path/scanorama --force-scanorama-files
+```
+
+After running it, reactivate the env (or open a new shell) and restart notebook kernels:
+
+```bash
+conda deactivate
+conda activate scgen-repro-env
+```
 
 ### Verification
 
-After setup, verify the environment works. From the repo root (so Python can find the local `scgen` package under `code/`):
+After setup, verify imports and kernel registration.
+
+From the repo root (Python import check):
 
 ```bash
 cd code && python -c "import scgen; import scanpy; import tensorflow; print('All imports successful')"
 ```
 
-**SageMaker / CXXABI error:** If you see `version 'CXXABI_1.3.15' not found` when importing scanpy/matplotlib, the system libstdc++ is older than the one the env was built with. Use the conda env’s libraries first:
-
-```bash
-export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
-cd code && python -c "import scgen; import scanpy; import tensorflow; print('All imports successful')"
-```
-
-To make this permanent for this env (run once), so every new shell has it:
-
-```bash
-mkdir -p $CONDA_PREFIX/etc/conda/activate.d
-printf '#!/bin/sh\nexport LD_LIBRARY_PATH="%s/lib:${LD_LIBRARY_PATH}"\n' "$CONDA_PREFIX" > $CONDA_PREFIX/etc/conda/activate.d/libstdcxx_ldlibrarypath.sh
-```
-
-Then `conda deactivate` and `conda activate scgen-repro-env` (or open a new terminal) and re-run the verification.
-
-### Jupyter kernel check (conda)
-
-If a notebook cannot import a dependency, confirm the kernel is using the
-`scgen-repro-env` conda environment:
+Kernel registration check:
 
 ```bash
 conda activate scgen-repro-env
@@ -120,30 +140,32 @@ import sys
 print(sys.executable)
 ```
 
-If the kernel is missing, register it:
+If the kernel is missing, run `bash scripts/setup_notebook_environment.sh` again (or register manually with `python -m ipykernel install --user --name scgen-repro-env --display-name "Python (scgen-repro-env)"`).
+
+## Data + Model Artifacts (for full notebook reproduction)
+
+**Reproducibility checklist:** (1) `cd` to repo root. (2) Create + activate `scgen-repro-env`. (3) Run `scripts/setup_notebook_environment.sh`. (4) Confirm with `jupyter kernelspec list` and import checks. (5) Download data/train models. (6) Run notebooks with kernel `Python (scgen-repro-env)`.
+
+### Scanorama bootstrap (automated by setup script)
+
+For [pancreas-4-Scanorama](Jupyter%20Notebooks/pancreas-4-Scanorama.ipynb), `scripts/setup_notebook_environment.sh` now handles the required Scanorama bootstrap by default (sibling clone + `conf/4panc.txt` + `bin/4panc.py`).
+
+If cloning was skipped (e.g., no network) or you used `--skip-scanorama`, run one of:
 
 ```bash
-python -m ipykernel install --user --name scgen-repro-env --display-name "Python (scgen-repro-env)"
-```
+# Re-run just with default behavior
+bash scripts/setup_notebook_environment.sh
 
-## Getting Started
-
-**Reproducibility checklist:** (1) Create the environment from `conda-lock.yml` or `environment.yml`. (2) Run `scripts/create_symlink.sh` so notebooks find `code/scgen`. (3) Clone the Scanorama repo (required for the pancreas-4-Scanorama notebook). (4) Download data and train models (below). (5) Run notebooks with the `scgen-repro-env` kernel.
-
-### Clone Scanorama (before data download)
-
-The [pancreas-4-Scanorama](Jupyter%20Notebooks/pancreas-4-Scanorama.ipynb) notebook expects the [Scanorama](https://github.com/brianhie/scanorama) repo as a **sibling** of this repo. Clone it **before** running the data download:
-
-```bash
+# Or do it manually:
 cd /path/to/parent   # parent of scgen-reproducibility
 git clone https://github.com/brianhie/scanorama.git scanorama
 ```
 
-Then create `scanorama/conf/4panc.txt` and `scanorama/bin/4panc.py` as described in the notebook. For setup and troubleshooting (conda install, dependencies, paths), see [notes/pancreas-4-scanorama-compatibility.md](notes/pancreas-4-scanorama-compatibility.md).
+For troubleshooting (conda install, dependencies, paths), see [notes/pancreas-4-scanorama-compatibility.md](notes/pancreas-4-scanorama-compatibility.md).
 
 ### Download data and train models
 
-Once the environment (and Scanorama clone, if you use the pancreas-4-Scanorama notebook) is set up:
+Once the environment setup script has completed:
 
 ```bash
 cd code/
@@ -174,7 +196,7 @@ Reconstruction outputs are cached by default. To force regeneration, pass
 python ModelTrainer.py all --overwrite
 ```
 
-**Note:** The `scgen` module lives in `code/scgen`; `scripts/create_symlink.sh` creates a symlink at `Jupyter Notebooks/scgen` so notebooks can import it.
+**Note:** The `scgen` module lives in `code/scgen`; `scripts/setup_notebook_environment.sh` sets up the `Jupyter Notebooks/scgen` symlink, installs an IPython startup hook, configures env-local `LD_LIBRARY_PATH` hooks, registers the active environment as a Jupyter kernel, and bootstraps Scanorama files used by `pancreas-4-Scanorama.ipynb`.
 
 ### Troubleshooting
 
@@ -189,13 +211,11 @@ python ModelTrainer.py all --overwrite
      conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1
      export LD_LIBRARY_PATH="$CONDA_PREFIX/lib:${LD_LIBRARY_PATH}"
      ```
-     To make the `LD_LIBRARY_PATH` change permanent for this env:
+     To make `LD_LIBRARY_PATH` persistent for this env, prefer rerunning:
      ```bash
-     mkdir -p $CONDA_PREFIX/etc/conda/activate.d
-     printf 'export LD_LIBRARY_PATH="%s/lib:${LD_LIBRARY_PATH}"\n' "$CONDA_PREFIX" \
-       > $CONDA_PREFIX/etc/conda/activate.d/ld_library_path.sh
+     bash scripts/setup_notebook_environment.sh
      ```
-     **After adding this hook, deactivate and reactivate the env** (or open a new shell) so it takes effect:
+     **After updating hooks, deactivate and reactivate the env** (or open a new shell) so it takes effect:
      ```bash
      conda deactivate
      conda activate scgen-repro-env

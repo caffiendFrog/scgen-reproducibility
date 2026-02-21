@@ -1,7 +1,7 @@
 import anndata
 import scanpy as sc
 import scgen
-from scgen.file_utils import get_dense_X, should_skip_reconstruction
+from scgen.file_utils import ensure_dir_for_file, get_dense_X, should_skip_reconstruction
 from scipy import sparse
 from scgen.constants import DEFAULT_BATCH_SIZE
 
@@ -128,7 +128,7 @@ def reconstruct_whole_data(data_name="pbmc", condition_key="condition"):
 
         print(f"Finish Reconstructing for {cell_type}")
         network.sess.close()
-    all_data.write_h5ad(output_path)
+    all_data.write_h5ad(ensure_dir_for_file(output_path))
 
 
 def test_train_whole_data_some_celltypes_out(data_name="pbmc",

@@ -40,6 +40,7 @@ import os
 #
 
 import scanpy as sc
+from scgen.file_utils import ensure_dir_for_file
 # mnist_data = sc.read("../data/normal_thick.h5ad")
 # mnist_data = mnist_data.copy()[mnist_data.obs["condition"] == "normal"]
 # mnist_data.obs["condition"] = mnist_data.copy().obs["labels"].values.astype(dtype=np.str)
@@ -79,4 +80,4 @@ x_train, y_train = load_mnist(path="../data/fashion/")
 
 fashion_adata = anndata.AnnData(X=x_train, obs={"condition": y_train, "labels": y_train})
 print(fashion_adata)
-fashion_adata.write_h5ad("../data/fashion.h5ad")
+fashion_adata.write_h5ad(ensure_dir_for_file("../data/fashion.h5ad"))

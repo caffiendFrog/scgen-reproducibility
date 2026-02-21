@@ -1,9 +1,16 @@
+import argparse
 import anndata
+import os
 import scanpy as sc
 import scgen
 from scgen.file_utils import get_dense_X, should_skip_reconstruction
+from scgen.gpu_utils import run_commands_parallel
+from scgen.repro_utils import seed_everything_from_env
 from scipy import sparse
 from scgen.constants import DEFAULT_BATCH_SIZE
+import sys
+
+seed_everything_from_env()
 
 
 def test_train_whole_data_one_celltype_out(data_name="pbmc",
@@ -189,61 +196,100 @@ def train_cross_study(data_name="study",
     network.sess.close()
 
 
-if __name__ == '__main__':
-    test_train_whole_data_one_celltype_out("pbmc", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
-                                           dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("hpoly", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
-                                           dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("salmonella", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
-                                           dropout_rate=0.2, learning_rate=0.001)
-    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
-                                           dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="rat")
-    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
-                                           dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="rabbit")
-    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
-                                           dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="mouse")
-    test_train_whole_data_one_celltype_out("species", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
-                                           dropout_rate=0.2, learning_rate=0.001, cell_type_to_train="pig")
-    train_cross_study("study", z_dim=100, alpha=0.00005, n_epochs=300, batch_size=DEFAULT_BATCH_SIZE,
-                      dropout_rate=0.2, learning_rate=0.001)
-    reconstruct_whole_data("pbmc")
-    reconstruct_whole_data("hpoly")
-    reconstruct_whole_data("salmonella")
-    reconstruct_whole_data("species")
+def _run_phase_or_raise(commands):
+    exit_code = run_commands_parallel(commands, cwd=os.path.dirname(os.path.abspath(__file__)))
+    if exit_code != 0:
+        raise RuntimeError("One or more train_scGen phase jobs failed.")
 
-    c_in = ['NK', 'B', 'CD14+Mono']
-    c_out = ['CD4T', 'FCGR3A+Mono', 'CD8T', 'Dendritic']
-    test_train_whole_data_some_celltypes_out(data_name="pbmc",
-                                             z_dim=100,
-                                             alpha=0.00005,
-                                             n_epochs=300,
-                                             batch_size=DEFAULT_BATCH_SIZE,
-                                             dropout_rate=0.2,
-                                             learning_rate=0.001,
-                                             condition_key="condition",
-                                             c_out=c_out,
-                                             c_in=c_in)
-    c_in = ['CD14+Mono']
-    c_out = ['CD4T', 'FCGR3A+Mono', 'CD8T', 'NK', 'B', 'Dendritic']
-    test_train_whole_data_some_celltypes_out(data_name="pbmc",
-                                             z_dim=100,
-                                             alpha=0.00005,
-                                             n_epochs=300,
-                                             batch_size=DEFAULT_BATCH_SIZE,
-                                             dropout_rate=0.2,
-                                             learning_rate=0.001,
-                                             condition_key="condition",
-                                             c_out=c_out,
-                                             c_in=c_in)
-    c_in = ['CD8T', 'NK', 'B', 'Dendritic', 'CD14+Mono']
-    c_out = ['CD4T', 'FCGR3A+Mono']
-    test_train_whole_data_some_celltypes_out(data_name="pbmc",
-                                             z_dim=100,
-                                             alpha=0.00005,
-                                             n_epochs=300,
-                                             batch_size=DEFAULT_BATCH_SIZE,
-                                             dropout_rate=0.2,
-                                             learning_rate=0.001,
-                                             condition_key="condition",
-                                             c_out=c_out,
-                                             c_in=c_in)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Train/reconstruct scGen with phased parallel execution.")
+    parser.add_argument(
+        "--task",
+        default="all",
+        choices=["all", "train_one", "train_cross_study", "reconstruct", "train_some"],
+    )
+    parser.add_argument("--data_name", default="pbmc")
+    parser.add_argument("--cell_type_to_train", default=None)
+    parser.add_argument("--heldout_set", default="set1", choices=["set1", "set2", "set3"])
+    args = parser.parse_args()
+
+    if args.task == "train_one":
+        test_train_whole_data_one_celltype_out(
+            args.data_name,
+            z_dim=100,
+            alpha=0.00005,
+            n_epochs=300,
+            batch_size=DEFAULT_BATCH_SIZE,
+            dropout_rate=0.2,
+            learning_rate=0.001,
+            cell_type_to_train=args.cell_type_to_train,
+        )
+        sys.exit(0)
+
+    if args.task == "train_cross_study":
+        train_cross_study(
+            args.data_name,
+            z_dim=100,
+            alpha=0.00005,
+            n_epochs=300,
+            batch_size=DEFAULT_BATCH_SIZE,
+            dropout_rate=0.2,
+            learning_rate=0.001,
+        )
+        sys.exit(0)
+
+    if args.task == "reconstruct":
+        reconstruct_whole_data(args.data_name)
+        sys.exit(0)
+
+    if args.task == "train_some":
+        if args.heldout_set == "set1":
+            c_in = ['NK', 'B', 'CD14+Mono']
+            c_out = ['CD4T', 'FCGR3A+Mono', 'CD8T', 'Dendritic']
+        elif args.heldout_set == "set2":
+            c_in = ['CD14+Mono']
+            c_out = ['CD4T', 'FCGR3A+Mono', 'CD8T', 'NK', 'B', 'Dendritic']
+        else:
+            c_in = ['CD8T', 'NK', 'B', 'Dendritic', 'CD14+Mono']
+            c_out = ['CD4T', 'FCGR3A+Mono']
+        test_train_whole_data_some_celltypes_out(
+            data_name="pbmc",
+            z_dim=100,
+            alpha=0.00005,
+            n_epochs=300,
+            batch_size=DEFAULT_BATCH_SIZE,
+            dropout_rate=0.2,
+            learning_rate=0.001,
+            condition_key="condition",
+            c_out=c_out,
+            c_in=c_in,
+        )
+        sys.exit(0)
+
+    script = os.path.basename(__file__)
+    py = f"\"{sys.executable}\""
+    train_phase_commands = [
+        f"{py} ./{script} --task train_one --data_name pbmc",
+        f"{py} ./{script} --task train_one --data_name hpoly",
+        f"{py} ./{script} --task train_one --data_name salmonella",
+        f"{py} ./{script} --task train_one --data_name species --cell_type_to_train rat",
+        f"{py} ./{script} --task train_one --data_name species --cell_type_to_train rabbit",
+        f"{py} ./{script} --task train_one --data_name species --cell_type_to_train mouse",
+        f"{py} ./{script} --task train_one --data_name species --cell_type_to_train pig",
+        f"{py} ./{script} --task train_cross_study --data_name study",
+    ]
+    reconstruct_phase_commands = [
+        f"{py} ./{script} --task reconstruct --data_name pbmc",
+        f"{py} ./{script} --task reconstruct --data_name hpoly",
+        f"{py} ./{script} --task reconstruct --data_name salmonella",
+        f"{py} ./{script} --task reconstruct --data_name species",
+    ]
+    more_train_phase_commands = [
+        f"{py} ./{script} --task train_some --heldout_set set1",
+        f"{py} ./{script} --task train_some --heldout_set set2",
+        f"{py} ./{script} --task train_some --heldout_set set3",
+    ]
+    _run_phase_or_raise(train_phase_commands)
+    _run_phase_or_raise(reconstruct_phase_commands)
+    _run_phase_or_raise(more_train_phase_commands)

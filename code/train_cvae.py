@@ -7,6 +7,7 @@ import time
 
 import scgen
 from scgen.file_utils import should_skip_reconstruction
+from scgen.repro_utils import seed_everything_from_env
 
 
 conda_prefix = os.environ.get("CONDA_PREFIX") or sys.prefix
@@ -27,6 +28,8 @@ except Exception as e:
     ) from e
 import numpy as np
 from scgen.file_utils import ensure_dir_for_file
+
+seed_everything_from_env()
 
 output_path = "../data/reconstructed/CVAE/CVAE_CD4T.h5ad"
 if should_skip_reconstruction(output_path):

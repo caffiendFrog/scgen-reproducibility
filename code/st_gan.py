@@ -9,6 +9,9 @@ import tensorflow as tf
 from data_reader import data_reader
 from scgen.file_utils import ensure_dir_for_file, get_dense_X, should_skip_reconstruction
 from scgen.constants import STGAN_BATCH_SIZE
+from scgen.repro_utils import seed_everything_from_env
+
+seed_everything_from_env()
 
 # =============================== downloading training and validation files ====================================
 train_path = "../data/train_pbmc.h5ad"

@@ -4,10 +4,12 @@ import numpy as np
 import scanpy as sc
 import scgen
 from scgen.file_utils import ensure_dir_for_file, get_dense_X, should_skip_reconstruction, to_dense
+from scgen.repro_utils import seed_everything_from_env
 
 
 # =============================== downloading training and validation files ====================================
 # we do not use the validation data to apply vectroe arithmetics in gene expression space
+seed_everything_from_env()
 
 def train(data_name="pbmc", cell_type="CD4T", p_type="unbiased"):
     if p_type == "unbiased":

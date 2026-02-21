@@ -1,4 +1,5 @@
 import anndata
+import concurrent.futures
 import numpy as np
 import scanpy as sc
 # from data_reader import data_reader
@@ -7,10 +8,12 @@ import scgen
 import scipy.sparse as sparse
 from sklearn.decomposition import PCA
 from scgen.file_utils import ensure_dir_for_file, get_dense_X, should_skip_reconstruction, to_dense
+from scgen.repro_utils import seed_everything_from_env
 
 
 # =============================== downloading training and validation files ====================================
 # we do not use the validation data to apply vector arithmetics in gene expression space
+seed_everything_from_env()
 
 
 def predict(pca, cd_x, hfd_x, cd_y, p_type="unbiased"):
@@ -143,6 +146,12 @@ if __name__ == "__main__":
     #            , save="Vec_Arith_PCA_biased.png", show=False,
     #            legend_fontsize=18, title="")
     # sc.pl.violin(all_Data, groupby='condition', keys="ISG15", save="Vec_Arith_PCA.pdf", show=False)
-    train("pbmc", "CD4T", "unbiased")
-    train("pbmc", "CD4T", "biased")
+    # Run both training variants concurrently, then reconstruct once both complete.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [
+            executor.submit(train, "pbmc", "CD4T", "unbiased"),
+            executor.submit(train, "pbmc", "CD4T", "biased"),
+        ]
+        for future in concurrent.futures.as_completed(futures):
+            future.result()
     reconstruct()

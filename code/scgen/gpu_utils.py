@@ -5,6 +5,14 @@ import time
 from scgen.repro_utils import apply_reproducibility_env, get_seed_from_env
 
 def get_available_gpu_ids():
+    explicit_gpu_ids = os.environ.get("SCGEN_GPU_IDS")
+    if explicit_gpu_ids:
+        gpu_ids = [gpu_id.strip() for gpu_id in explicit_gpu_ids.split(",") if gpu_id.strip() and gpu_id.strip() != "-1"]
+        if gpu_ids:
+            return gpu_ids
+        if explicit_gpu_ids.strip() == "-1":
+            return []
+
     # Respect explicit visibility first so callers can constrain devices externally
     # (e.g., in Slurm, Docker, or a parent launcher script).
     visible_devices = os.environ.get("CUDA_VISIBLE_DEVICES")
@@ -43,6 +51,7 @@ def run_on_next_gpu(call_idx, call_name, fn, gpu_ids):
 
 def run_commands_parallel(commands, cwd=None, overwrite=False):
     gpu_ids = get_available_gpu_ids()
+    print(f"Detected GPUs for scheduler: {gpu_ids if gpu_ids else 'CPU-only'}")
     target_cwd = cwd or os.getcwd()
     max_workers = max(1, len(gpu_ids))
     pending = list(enumerate(commands))
@@ -86,6 +95,7 @@ def run_commands_parallel(commands, cwd=None, overwrite=False):
 
 def run_command_specs_parallel(command_specs, cwd=None, overwrite=False):
     gpu_ids = get_available_gpu_ids()
+    print(f"Detected GPUs for scheduler: {gpu_ids if gpu_ids else 'CPU-only'}")
     target_cwd = cwd or os.getcwd()
     pending = [(idx, dict(spec)) for idx, spec in enumerate(command_specs)]
     running = []

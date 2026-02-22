@@ -423,7 +423,7 @@ class VAEArithKeras:
               n_epochs=25,
               batch_size=DEFAULT_BATCH_SIZE,
               early_stop_limit=20,
-              threshold=0.0025,
+              threshold=0.00025,
               initial_run=True,
               shuffle=True,
               verbose=1,
